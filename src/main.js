@@ -1979,11 +1979,11 @@ async deleteClass(classId, className) {
 
         let uploaded = 0;
         for (const file of files) {
-            const ext = (file.name.split('.').pop() || '').toLowerCase();
-            if (!['pdf', 'mp4'].includes(ext)) continue;
+            const fileExt = (file.name.split('.').pop() || '').toLowerCase();
+            if (!['pdf', 'mp4'].includes(fileExt)) continue;
 
-            const safeName = file.name.replace(/[^\w.\-()\u4e00-\u9fa5 ]+/g, '_');
-            const path = `${prefix}${Date.now()}_${safeName}`;
+            const safeName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
+            const path = `${prefix}${safeName}`;
             const { error } = await supabaseClient.storage.from('courseware').upload(path, file, { upsert: false, contentType: file.type || undefined });
             if (error) {
                 if (status) status.innerText = `上传失败：${error.message}`;
