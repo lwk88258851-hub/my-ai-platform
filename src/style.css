@@ -181,6 +181,20 @@
         .reupload-btn { position: absolute; top: 10px; right: 20px; z-index: 60; background: rgba(0,0,0,0.6); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 5px 12px; border-radius: 20px; cursor: pointer; font-size: 0.8rem; backdrop-filter: blur(4px); transition: 0.2s; display: none; }
         .tab-content.has-file .reupload-btn { display: flex; align-items: center; gap: 5px; }
 
+        .courseware-toolbar { display:flex; align-items:center; gap:12px; padding:10px 0 15px 0; }
+        .courseware-layout { display:flex; gap:15px; height: 520px; }
+        .courseware-left { width: 360px; background:#111; border:1px solid #222; border-radius:12px; overflow:hidden; display:flex; flex-direction:column; }
+        .courseware-right { flex: 1; background:#111; border:1px solid #222; border-radius:12px; overflow:hidden; display:flex; flex-direction:column; }
+        .courseware-list { flex:1; overflow:auto; padding:10px; }
+        .courseware-item { display:flex; align-items:center; gap:12px; padding:10px; border-radius:12px; border:1px solid #222; background:#0b0b0b; cursor:pointer; margin-bottom:10px; }
+        .courseware-item:hover { background:#111; border-color:#2a2a2a; }
+        .courseware-item.active { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
+        .courseware-icon { width:36px; height:36px; border-radius:10px; background:#111; border:1px solid #222; display:flex; align-items:center; justify-content:center; color:#fbbf24; flex-shrink:0; }
+        .courseware-meta { flex:1; min-width:0; }
+        .courseware-name { font-weight:800; color:#e5e7eb; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .courseware-sub { font-size:0.85rem; color:#94a3b8; margin-top:2px; }
+        .courseware-preview { flex:1; display:flex; align-items:center; justify-content:center; color:#94a3b8; background:#0b0b0b; }
+
         /* 右侧面板 (修复布局问题) */
         #roster-panel { flex: 1; display: flex; flex-direction: column; height: 100%; background: var(--panel-bg); border-radius: 16px; border: 1px solid #333; overflow: hidden; position: relative; }
         .header-hud { padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; background: #161616; border-bottom: 1px solid #333; height: 70px; flex-shrink: 0; }

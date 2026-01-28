@@ -1802,6 +1802,163 @@ async deleteClass(classId, className) {
         this.loadWebsites();
     },
 
+    openCourseware() {
+        el('courseware-modal').style.display = 'flex';
+        const status = el('courseware-status');
+        if (status) status.innerText = '';
+        const preview = el('courseware-preview');
+        if (preview) {
+            preview.innerHTML = `
+                <div style="text-align:center; color:#666; padding:40px;">
+                    <i class="fas fa-photo-video" style="font-size:3rem; opacity:0.25;"></i>
+                    <div style="margin-top:10px;">请选择一个课件进行播放</div>
+                </div>`;
+        }
+        this.loadCoursewareList();
+    },
+
+    async loadCoursewareList() {
+        const listDiv = el('courseware-list');
+        const status = el('courseware-status');
+        if (!listDiv) return;
+        if (!supabaseClient || !this.data.user) {
+            listDiv.innerHTML = `<div style="text-align:center; color:#ef4444; padding:20px;">请先登录</div>`;
+            return;
+        }
+
+        listDiv.innerHTML = '<div style="text-align:center;color:#666;padding:20px;"><i class="fas fa-circle-notch fa-spin"></i> 加载中...</div>';
+        if (status) status.innerText = '';
+
+        const prefix = `${this.data.user.id}/`;
+        const { data, error } = await supabaseClient.storage.from('courseware').list(prefix, { limit: 200, sortBy: { column: 'updated_at', order: 'desc' } });
+        if (error) {
+            listDiv.innerHTML = `<div style="text-align:center; color:#ef4444; padding:20px;">加载失败: ${error.message}</div>`;
+            return;
+        }
+
+        const items = (data || []).filter(x => x && x.name && !x.name.endsWith('/')).map(x => ({
+            name: x.name,
+            fullPath: `${prefix}${x.name}`,
+            updatedAt: x.updated_at || x.created_at || '',
+            size: x.metadata?.size || 0
+        }));
+
+        this.data.courseware = items;
+        this.renderCoursewareList();
+    },
+
+    renderCoursewareList(activeFullPath) {
+        const listDiv = el('courseware-list');
+        if (!listDiv) return;
+        const items = Array.isArray(this.data.courseware) ? this.data.courseware : [];
+        if (items.length === 0) {
+            listDiv.innerHTML = `
+                <div style="text-align:center;color:#666;padding:40px;">
+                    <i class="fas fa-cloud-upload-alt" style="font-size:3rem; margin-bottom:10px; opacity:0.25;"></i>
+                    <div>暂无课件<br>请点击上方按钮上传</div>
+                </div>`;
+            return;
+        }
+
+        listDiv.innerHTML = '';
+        items.forEach(it => {
+            const ext = (it.name.split('.').pop() || '').toLowerCase();
+            const isPdf = ext === 'pdf';
+            const isMp4 = ext === 'mp4';
+            const icon = isPdf ? 'fa-file-pdf' : isMp4 ? 'fa-film' : 'fa-file';
+
+            const div = document.createElement('div');
+            div.className = `courseware-item${activeFullPath && activeFullPath === it.fullPath ? ' active' : ''}`;
+            div.onclick = () => this.playCourseware(it);
+
+            const t = it.updatedAt ? new Date(it.updatedAt).toLocaleString() : '';
+            div.innerHTML = `
+                <div class="courseware-icon"><i class="fas ${icon}"></i></div>
+                <div class="courseware-meta">
+                    <div class="courseware-name">${it.name}</div>
+                    <div class="courseware-sub">${(isPdf ? 'PDF' : isMp4 ? 'MP4' : ext.toUpperCase())}${t ? ' · ' + t : ''}</div>
+                </div>
+                <div style="color:#94a3b8;"><i class="fas fa-play"></i></div>
+            `;
+            listDiv.appendChild(div);
+        });
+    },
+
+    async getCoursewareUrl(fullPath) {
+        const status = el('courseware-status');
+        const signed = await supabaseClient.storage.from('courseware').createSignedUrl(fullPath, 3600);
+        if (!signed.error && signed.data?.signedUrl) return signed.data.signedUrl;
+
+        const pub = supabaseClient.storage.from('courseware').getPublicUrl(fullPath);
+        if (pub?.data?.publicUrl) {
+            if (status) status.innerText = '当前 Bucket 可能为 public，已使用 publicUrl 播放';
+            return pub.data.publicUrl;
+        }
+
+        throw new Error(signed.error?.message || '无法获取播放地址');
+    },
+
+    async playCourseware(item) {
+        if (!supabaseClient || !this.data.user) return;
+        const preview = el('courseware-preview');
+        const status = el('courseware-status');
+        if (!preview) return;
+
+        this.renderCoursewareList(item.fullPath);
+        preview.innerHTML = '<div style="font-size:1.2rem; color:#999;"><i class="fas fa-spinner fa-spin"></i> 加载中...</div>';
+        if (status) status.innerText = '';
+
+        try {
+            const url = await this.getCoursewareUrl(item.fullPath);
+            const ext = (item.name.split('.').pop() || '').toLowerCase();
+            if (ext === 'mp4') {
+                preview.innerHTML = `<video src="${url}" controls autoplay style="max-width:100%; max-height:100%; width:100%; height:100%;"></video>`;
+            } else if (ext === 'pdf') {
+                preview.innerHTML = `<iframe src="${url}" style="width:100%; height:100%; border:none; background:white;"></iframe>`;
+            } else {
+                preview.innerHTML = `<div style="color:#ef4444; padding:20px;">不支持的格式：.${ext}</div>`;
+            }
+        } catch (e) {
+            preview.innerHTML = `<div style="color:#ef4444; padding:20px;">加载失败：${e.message}</div>`;
+        }
+    },
+
+    async handleCoursewareUpload(input) {
+        const status = el('courseware-status');
+        const listDiv = el('courseware-list');
+        if (!supabaseClient || !this.data.user) {
+            if (status) status.innerText = '请先登录';
+            input.value = '';
+            return;
+        }
+
+        const files = Array.from(input.files || []);
+        input.value = '';
+        if (files.length === 0) return;
+
+        if (status) status.innerText = '上传中...';
+        if (listDiv) listDiv.scrollTop = 0;
+
+        const prefix = `${this.data.user.id}/`;
+
+        for (const file of files) {
+            const ext = (file.name.split('.').pop() || '').toLowerCase();
+            if (!['pdf', 'mp4'].includes(ext)) continue;
+
+            const safeName = file.name.replace(/[^\w.\-()\u4e00-\u9fa5 ]+/g, '_');
+            const path = `${prefix}${Date.now()}_${safeName}`;
+            const { error } = await supabaseClient.storage.from('courseware').upload(path, file, { upsert: false, contentType: file.type || undefined });
+            if (error) {
+                if (status) status.innerText = `上传失败：${error.message}`;
+                await this.loadCoursewareList();
+                return;
+            }
+        }
+
+        if (status) status.innerText = '上传完成';
+        await this.loadCoursewareList();
+    },
+
     async loadWebsites() {
         if(!supabaseClient || !this.data.user) return;
         const listDiv = el('web-list');
