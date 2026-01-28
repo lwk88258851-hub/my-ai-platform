@@ -1817,11 +1817,40 @@ async deleteClass(classId, className) {
         this.loadCoursewareList();
     },
 
+    triggerCoursewareUploader() {
+        const status = el('courseware-status');
+        const input = el('coursewareUploader');
+        if (!input) {
+            if (status) status.innerText = '❌ 未找到上传控件（可能未刷新到最新部署）';
+            alert("❌ 未找到上传控件 coursewareUploader。\n请确认 Cloudflare Pages 已重新部署到最新版本，并强制刷新浏览器缓存。");
+            return;
+        }
+
+        if (!supabaseClient) {
+            if (status) status.innerText = '❌ 未连接 Supabase（请检查 Pages 环境变量并重新部署）';
+            alert("❌ 未连接 Supabase。\n请检查 Cloudflare Pages Production 环境变量：VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY，并重新部署。");
+            return;
+        }
+
+        if (!this.data.user) {
+            if (status) status.innerText = '请先登录';
+            alert("请先登录后再上传课件。");
+            return;
+        }
+
+        input.click();
+    },
+
     async loadCoursewareList() {
         const listDiv = el('courseware-list');
         const status = el('courseware-status');
         if (!listDiv) return;
-        if (!supabaseClient || !this.data.user) {
+        if (!supabaseClient) {
+            listDiv.innerHTML = `<div style="text-align:center; color:#ef4444; padding:20px;">未连接 Supabase（请检查 Pages 环境变量并重新部署）</div>`;
+            if (status) status.innerText = '❌ 未连接 Supabase';
+            return;
+        }
+        if (!this.data.user) {
             listDiv.innerHTML = `<div style="text-align:center; color:#ef4444; padding:20px;">请先登录</div>`;
             return;
         }
@@ -1926,8 +1955,15 @@ async deleteClass(classId, className) {
     async handleCoursewareUpload(input) {
         const status = el('courseware-status');
         const listDiv = el('courseware-list');
-        if (!supabaseClient || !this.data.user) {
+        if (!supabaseClient) {
+            if (status) status.innerText = '❌ 未连接 Supabase';
+            alert("❌ 未连接 Supabase。\n请检查 Cloudflare Pages Production 环境变量并重新部署。");
+            input.value = '';
+            return;
+        }
+        if (!this.data.user) {
             if (status) status.innerText = '请先登录';
+            alert("请先登录后再上传课件。");
             input.value = '';
             return;
         }
@@ -1936,11 +1972,12 @@ async deleteClass(classId, className) {
         input.value = '';
         if (files.length === 0) return;
 
-        if (status) status.innerText = '上传中...';
+        if (status) status.innerText = `上传中...（${files.length} 个文件）`;
         if (listDiv) listDiv.scrollTop = 0;
 
         const prefix = `${this.data.user.id}/`;
 
+        let uploaded = 0;
         for (const file of files) {
             const ext = (file.name.split('.').pop() || '').toLowerCase();
             if (!['pdf', 'mp4'].includes(ext)) continue;
@@ -1950,11 +1987,19 @@ async deleteClass(classId, className) {
             const { error } = await supabaseClient.storage.from('courseware').upload(path, file, { upsert: false, contentType: file.type || undefined });
             if (error) {
                 if (status) status.innerText = `上传失败：${error.message}`;
+                alert(`❌ 上传失败：${error.message}`);
                 await this.loadCoursewareList();
                 return;
             }
+            uploaded++;
+            if (status) status.innerText = `上传中...（已完成 ${uploaded}/${files.length}）`;
         }
 
+        if (uploaded === 0) {
+            if (status) status.innerText = '未选择支持的文件（仅支持 PDF/MP4）';
+            alert("未选择支持的文件（仅支持 PDF/MP4）。");
+            return;
+        }
         if (status) status.innerText = '上传完成';
         await this.loadCoursewareList();
     },
