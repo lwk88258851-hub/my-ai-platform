@@ -725,7 +725,7 @@ const wb = {
 const app = {
     data: {
         // === 基础数据 ===
-        user: null, userProfile: null, currentClass: null, students: [], groups: [], 
+        user: null, userProfile: null, vipJustActivatedAt: null, currentClass: null, students: [], groups: [], 
         isRunning: false, timer: null, mode: 'single', targetGroup: null, 
         tempId1: null, tempId2: null, editingId: null, calledSet: new Set(),
         
@@ -986,6 +986,7 @@ const app = {
     async refreshUserProfile() {
         if (!supabaseClient || !this.data.user) return;
         const defaults = { membership_tier: 'free', membership_expire_at: null };
+        const keepProUntil = (Number.isFinite(this.data.vipJustActivatedAt) ? this.data.vipJustActivatedAt : 0) + 15000;
 
         const byId = await supabaseClient
             .from('profiles')
@@ -1007,6 +1008,7 @@ const app = {
             return;
         }
 
+        if (this.data.userProfile?.membership_tier === 'pro' && Date.now() < keepProUntil) return;
         this.data.userProfile = defaults;
     },
 
@@ -1861,7 +1863,8 @@ async deleteClass(classId, className) {
 
     async openCloudDrive() {
         if (!supabaseClient || !this.data.user) return alert("请先登录");
-        await this.refreshUserProfile();
+        const justActivated = Number.isFinite(this.data.vipJustActivatedAt) && (Date.now() - this.data.vipJustActivatedAt) < 15000;
+        if (!justActivated) await this.refreshUserProfile();
         this.updateMembershipUI();
         if (!this.isProActive()) {
             const ok = confirm("此功能为 VIP 专享，请升级专业版。\n\n点击“确定”输入激活码，点击“取消”返回。");
@@ -1888,16 +1891,21 @@ async deleteClass(classId, className) {
             return;
         }
 
+        const expire = data && typeof data === 'object' ? (data.membership_expire_at ?? data.expire_at ?? null) : null;
+        this.data.userProfile = { membership_tier: 'pro', membership_expire_at: expire ?? this.data.userProfile?.membership_expire_at ?? null };
+        this.data.vipJustActivatedAt = Date.now();
+        this.updateMembershipUI();
+
         alert("✅ 激活成功！");
         if (data && typeof data === 'object') {
             const tier = data.membership_tier ?? data.tier;
-            const expire = data.membership_expire_at ?? data.expire_at;
-            if (tier) this.data.userProfile = { membership_tier: tier, membership_expire_at: expire ?? null };
+            const expire2 = data.membership_expire_at ?? data.expire_at;
+            if (tier) this.data.userProfile = { membership_tier: tier, membership_expire_at: expire2 ?? null };
         }
 
         await this.refreshUserProfile();
         this.updateMembershipUI();
-        if (this.isProActive()) this.openCourseware();
+        await this.openCloudDrive();
     },
 
     openCourseware() {
