@@ -17,3 +17,11 @@ npm run dev
 VITE_SUPABASE_URL=你的_supabase_url
 VITE_SUPABASE_ANON_KEY=你的_supabase_anon_key
 ```
+
+如果页面需要调用 DeepSeek，请不要把 DeepSeek API Key 放在前端代码或任何 VITE_ 环境变量里；正确做法是部署一个中转代理（例如 Cloudflare Worker），由代理在服务端保存 Key，然后前端只配置：
+
+```bash
+VITE_DEEPSEEK_PROXY_URL=你的_deepseek_proxy_url
+```
+
+Deploy trigger: 2026-01-28
