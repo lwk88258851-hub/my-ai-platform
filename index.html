@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI多功能班级教学系统 - V4.1 终极全息版 (修复版)</title>
+    
+    <!-- 字体与图标库 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Ma+Shan+Zheng&family=Zcool+KuaiLe&family=Orbitron:wght@500;900&family=Russo+One&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- 核心功能库（已改为 npm + import，由 src/main.js 统一引入） -->
+    <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+
+    <div id="app-container">
+        <!-- 左侧 (教学白板 - 更新版) -->
+        <div id="lecture-panel">
+            <div class="panel-tabs">
+                <div class="p-tab active" onclick="app.switchTab('teaching')"><i class="fas fa-chalkboard-teacher"></i> 教学演示 (播放)</div>
+                <div class="p-tab" onclick="app.switchTab('practice')"><i class="fas fa-edit"></i> 自由练习 (万能)</div>
+                <div class="p-tab" onclick="app.toggleFullScreen('lecture-panel')" style="flex:0; padding:12px 20px; color:var(--primary);" title="全屏/退出">
+                    <i class="fas fa-expand"></i>
+                </div>
+            </div>
+
+            <div class="whiteboard-wrapper" id="wb-wrapper">
+                <div class="wb-pages-sidebar" id="wb-pages-sidebar">
+                    <div class="wb-pages-actions">
+                        <button class="wb-page-action" id="wb-pages-toggle-btn" onclick="wb.togglePagesSidebar()" title="收缩/展开"><i class="fas fa-chevron-left"></i></button>
+                        <button class="wb-page-action" id="wb-page-add-btn" onclick="wb.addPage()" title="新增页面"><i class="fas fa-plus"></i></button>
+                        <button class="wb-page-action" id="wb-page-del-btn" onclick="wb.deletePage()" title="删除当前页面"><i class="fas fa-trash"></i></button>
+                    </div>
+                    <div class="wb-pages-list" id="wb-pages-list"></div>
+                </div>
+
+                <div class="wb-stage" id="wb-stage">
+                    <div id="zoom-area" class="zoom-container">
+                    
+                    <div id="course-player-layer" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:10; background:#ffffff; display:flex; flex-direction:column;">
+                        
+                        <div style="height:50px; background:#f8fafc; display:flex; align-items:center; padding:0 20px; justify-content:space-between; border-bottom:2px solid #e2e8f0;">
+                            <div style="font-size:1rem; color:#0f172a; font-weight:bold; display:flex; align-items:center; gap:10px;">
+                                <i class="fas fa-folder-open" style="color:var(--primary);"></i> 
+                                <span id="cp-lesson-title">等待读取课件...</span>
+                            </div>
+                            <div style="font-size:0.9rem; background:#0f172a; color:#fff; padding:4px 12px; border-radius:20px; font-weight:bold; transform: skew(-10deg);">
+                                STEP <span id="cp-step-index" style="color:#fbbf24;">0</span> / <span id="cp-total-steps">0</span>
+                            </div>
+                        </div>
+
+                        <div id="cp-content-area" style="flex:1; position:relative; overflow:auto; display:flex; justify-content:center; align-items:center; background:#ffffff;">
+                            <div style="color:#94a3b8; text-align:center;">
+                                <div style="width:100px; height:100px; background:#f1f5f9; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 20px auto;">
+                                    <i class="fas fa-cloud-upload-alt" style="font-size:3rem; color:#cbd5e1;"></i>
+                                </div>
+                                <div style="font-size:1.5rem; font-weight:bold; color:#cbd5e1;">准备就绪</div>
+                                <div style="margin-top:5px;">请点击底部黄色按钮读取课件</div>
+                            </div>
+                        </div>
+
+                        <div style="height:90px; background:linear-gradient(to top, #ffffff, rgba(255,255,255,0)); display:flex; align-items:center; justify-content:center; gap:40px; padding-bottom:10px;">
+                            
+                            <button onclick="app.prevStep()" class="wild-nav-btn wild-btn-prev">
+                                <i class="fas fa-arrow-left"></i> PREV
+                            </button>
+                            
+                            <button onclick="app.nextStep()" class="wild-nav-btn wild-btn-next">
+                                NEXT <i class="fas fa-arrow-right"></i>
+                            </button>
+                            
+                        </div>
+                    </div>                    <div id="practice-layer" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:11; background:#000; display:none; flex-direction:column;">
+                        <div style="padding:10px; background:#222; text-align:center; border-bottom:1px solid #333;">
+                            <button class="reupload-btn" style="position:static; display:inline-flex;" onclick="el('genericFileLoader').click()">
+                                <i class="fas fa-cloud-upload-alt"></i> 打开任意练习文件 (PDF/Word/视频/图)
+                            </button>
+                        </div>
+                        <div id="viewer-practice" class="resource-viewer" style="flex:1; display:flex;"></div>
+                    </div>
+
+                    <div id="grid-layer">
+                        <div class="axis-container">
+                            <div class="axis-x"></div>
+                            <div class="axis-y"></div>
+                            <div class="origin-label">O</div>
+                        </div>
+                    </div>
+
+                    <canvas id="drawing-canvas" class="drawing-canvas" style="z-index:50;"></canvas>
+
+                </div>
+
+                <div id="ai-assistant-card" class="ai-floater" style="display:none;">
+                    <div class="ai-avatar-box">
+                        <div id="ai-icon-visual" class="ai-icon">🤖</div>
+                        <div class="ai-wave"></div>
+                    </div>
+                    <div class="ai-chat-bubble">
+                        <div id="ai-status-label" style="font-size:0.8rem; color:#aaa; margin-bottom:4px;">等待指令...</div>
+                        <div id="ai-text-content" style="font-size:1rem; font-weight:bold; color:white; line-height:1.4;">
+                            你好，我是你的 AI 助教。
+                        </div>
+                    </div>
+                </div>
+
+                <div class="wb-toolbar" id="wb-toolbar">
+                    <button class="wb-btn toggle-btn" onclick="app.toggleBar('wb-toolbar', this)"><i class="fas fa-chevron-left"></i></button>
+                    <div class="color-palette">
+                        <div class="color-dot active" style="background:red" onclick="wb.setColor('red', this)"></div>
+                        <div class="color-dot" style="background:yellow" onclick="wb.setColor('yellow', this)"></div>
+                        <div class="color-dot" style="background:white" onclick="wb.setColor('white', this)"></div>
+                    </div>
+                    <button class="wb-btn" id="btn-cursor" onclick="wb.setMode('cursor')" title="鼠标操作(点视频/翻页)"><i class="fas fa-mouse-pointer"></i></button>
+                    <button class="wb-btn" id="btn-pen" onclick="wb.setMode('pen')" title="画笔书写"><i class="fas fa-pen"></i></button>
+                    <button class="wb-btn" onclick="wb.setMode('eraser')"><i class="fas fa-eraser"></i></button>
+                    
+                    <button class="wb-btn" id="mic-btn" onclick="app.toggleVoice()" title="点击开启/关闭语音对话" style="border:1px solid #d946ef; color:#d946ef;">
+                        <i class="fas fa-microphone-slash"></i>
+                    </button>                    <button class="wb-btn" onclick="app.manualInput()" title="打字输入指令" style="color:white; border:1px solid #aaa;">
+                        <i class="fas fa-keyboard"></i>
+                    </button>
+
+                    <button class="wb-btn" onclick="app.askDeepSeek('帮我出一道勾股定理的计算题')" style="border:1px solid lime; color:lime;">测</button>                    <button class="wb-btn" onclick="wb.clear()"><i class="fas fa-trash"></i></button>
+                </div>                <!-- 右侧灵动学科坞 (已更新：胶囊风格) -->
+                <div id="subject-dock" class="subject-dock">
+                    
+                    <!-- 1. 数学图标 -->
+                    <div class="dock-item math" onclick="tools.toggleSubject('math')">
+                        <i class="fas fa-square-root-alt"></i>
+                        <span>数学</span>
+                    </div>
+
+                    <!-- 数学工具面板 -->
+                    <div id="dock-panel-math" class="dock-tools-container">
+                        <div>
+                            <div class="dock-group-title">神笔马良</div>
+                            <div class="dock-grid">
+                                <button class="dock-tool-btn" onclick="wb.setShapeMode('magic-line')">
+                                    <i class="fas fa-slash"></i> 直线
+                                </button>
+                                <button class="dock-tool-btn" onclick="wb.setShapeMode('magic-circle')">
+                                    <i class="far fa-circle"></i> 圆形
+                                </button>
+                            </div>
+                        </div>                        <div>
+                            <div class="dock-group-title">几何图形</div>
+                            <div class="dock-grid">
+                                <button class="dock-tool-btn" onclick="wb.setShapeMode('rect')">
+                                    <i class="far fa-square"></i> 矩形
+                                </button>
+                                <button class="dock-tool-btn" onclick="wb.setShapeMode('triangle')">
+                                    <i class="fas fa-caret-up"></i> 三角
+                                </button>
+                                
+                                <!-- ✅ 新增：坐标系开关按钮 -->
+                                <button class="dock-tool-btn" onclick="wb.toggleGrid()" title="开启/关闭 坐标系">
+                                    <i class="fas fa-border-all"></i> 坐标系
+                                </button>
+
+                                <!-- (原有的直角三角形按钮可以移到后面或者保留) -->
+                                <button class="dock-tool-btn" onclick="wb.setShapeMode('right-triangle')">
+                                    <i class="fas fa-ruler-triangle"></i> 直角
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="dock-group-title">文字</div>
+                            <button class="dock-tool-btn" style="width:100%" onclick="wb.setShapeMode('formula')">
+                                <i class="fas fa-font"></i> 标准印刷体
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 2. 语文图标 -->
+                    <div class="dock-item chinese" onclick="tools.toggleSubject('chinese')">
+                        <i class="fas fa-book-reader"></i>
+                        <span>语文</span>
+                    </div>
+                    
+                    <!-- 语文工具面板 -->
+                    <div id="dock-panel-chinese" class="dock-tools-container">
+                        <div style="text-align:center; color:#666; padding:20px 0;">
+                            <i class="fas fa-hard-hat" style="font-size:2rem; margin-bottom:10px;"></i>
+                            <div>田字格/笔顺<br>开发中...</div>
+                        </div>
+                    </div>
+
+                    <!-- 3. 英语图标 -->
+                    <div class="dock-item english" onclick="tools.toggleSubject('english')">
+                        <i class="fas fa-font"></i>
+                        <span>英语</span>
+                    </div>
+
+                    <!-- 英语工具面板 -->
+                    <div id="dock-panel-english" class="dock-tools-container">
+                        <div style="text-align:center; color:#666; padding:20px 0;">
+                            <i class="fas fa-wrench" style="font-size:2rem; margin-bottom:10px;"></i>
+                            <div>四线三格<br>开发中...</div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div id="ai-loading-toast" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.8); padding:20px 40px; border-radius:12px; color:white; z-index:100; text-align:center; border:1px solid #d946ef; box-shadow:0 0 30px #d946ef;">
+                    <i class="fas fa-robot fa-spin" style="font-size:3rem; margin-bottom:10px; color:#d946ef;">
+                    <div id="ai-toast-text" style="font-size:1.2rem;">正在聆听...</div>
+                </i></div>
+                </div>
+            </div>        </div>
+
+        
+        <!-- 右侧 (花名册 - V1) -->
+        <div id="roster-panel">
+            <div class="header-hud">
+                <div style="font-weight:bold; font-size:1.1rem; color:var(--primary)"><i class="fas fa-users"></i> 班级看板 (Supabase)</div>
+                <div class="header-center-title">
+                <div class="wild-header-wrapper">
+                    <div class="wild-header-title">
+                        AI 多功能教学平台
+                        <span class="wild-header-tag">V2</span>
+                    </div>
+                    
+                    <div class="wild-header-author">
+                        林维康
+                    </div>
+                </div>
+            </div>
+                <div style="display:flex; gap:5px;">
+                    <button class="ctrl-btn" onclick="app.openRace()" style="width:35px; height:35px; display:inline-flex; font-size:0.9rem; background:#7c3aed; color:white;" title="成绩赛跑"><i class="fas fa-flag-checkered"></i></button>
+                    <button class="ctrl-btn" onclick="app.openAnalysis()" style="width:35px; height:35px; display:inline-flex; background: linear-gradient(135deg, #8b5cf6, #d946ef);" title="智能分析"><i class="fas fa-chart-line"></i></button>
+                    <button class="ctrl-btn" onclick="app.togglePool()" style="width:35px; height:35px; display:inline-flex;"><i class="fas fa-user-friends"></i></button>
+                    <button class="ctrl-btn" onclick="app.addGroup()" style="width:35px; height:35px; display:inline-flex;"><i class="fas fa-plus"></i></button>
+<!-- 新增：网站收藏按钮 -->
+<button class="ctrl-btn" onclick="app.openWebsites()" title="常用网站收藏" style="background:#0ea5e9; color:white; margin-left:5px;">
+    <i class="fas fa-globe"></i>
+</button>
+                </div>
+            </div>
+            <div class="roster-split-layout">
+                <div class="all-students-area" id="poolArea" ondrop="app.drop(event, '未分组')" ondragover="event.preventDefault()">
+                    <div style="padding:10px; font-size:0.9rem; color:#666; text-align:center;">未分组学员</div>
+                    <div class="pool-content" id="poolContent" style="position:relative; min-height:200px;">
+                        <div id="pool-empty-state" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; color:#94a3b8; pointer-events:none;">
+                            <i class="fas fa-seedling" style="font-size:3rem; margin-bottom:10px; opacity:0.5;"></i>
+                            <div>暂无学生<br>请点击底部导入名单</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="groups-stage-area" id="groupStage"></div>
+            </div>
+
+            <!-- 单人模式结果层 (V1) -->
+            <div id="single-mode-result-layer">
+                <button class="q-close-btn" onclick="app.closeOverlay()" title="关闭 (不计分)"><i class="fas fa-times"></i></button>
+                <div id="single-card-container"></div>
+                <div id="single-btn-container" style="margin-top:30px; display:flex; gap:20px;">
+                    <button class="pk-judge-btn btn-win" onclick="app.judgeSingle(true)">🎉 获胜</button>
+                    <button class="pk-judge-btn btn-loss" onclick="app.judgeSingle(false)">💪 遗憾</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部控制栏 (更新版) -->
+        <div class="controls" id="main-controls">
+            <button class="ctrl-btn toggle-btn" onclick="app.toggleBar('main-controls', this)" title="收起工具栏"><i class="fas fa-chevron-down"></i></button>
+            
+            <button class="ctrl-btn" onclick="app.toggleLecture()" title="展开/收起教学白板">
+                <i class="fas fa-chalkboard-teacher"></i>
+            </button>            <button class="ctrl-btn" onclick="el('usbLoader').click()" title="📂 读取本地课件(USB)" style="background:var(--gold); color:black;">
+                <i class="fas fa-folder-open"></i>
+            </button>
+            <!-- 新增：网站收藏按钮 -->
+            <button class="ctrl-btn" onclick="app.openWebsites()" title="常用网站收藏" style="background:#0ea5e9; color:white; margin-left:5px;">
+                <i class="fas fa-globe"></i>
+            </button>
+            
+            <div style="width:1px; background:#555; height:20px; align-self:center;"></div>
+            
+            <button class="ctrl-btn primary" id="btn-roll" onclick="app.startRoll('single')" title="随机点名"><i class="fas fa-dice-d20"></i></button>
+            <button class="ctrl-btn pk" id="btn-pk" onclick="app.startRoll('pk')" title="PK对决"><i class="fas fa-khanda"></i></button>
+            
+            <button class="ctrl-btn" onclick="app.resetStatus()" title="重置状态"><i class="fas fa-undo"></i></button>
+            
+            <button class="ctrl-btn" onclick="el('quizFile').click()" title="导入题库" style="color:#4ade80;"><i class="fas fa-file-import"></i></button>
+
+            <div style="width:1px; background:#555; height:20px; align-self:center;"></div>
+            
+            <button class="ctrl-btn" onclick="app.openImport()" title="导入名单"><i class="fas fa-user-plus"></i></button>
+            <button class="ctrl-btn" onclick="app.switchClass()" title="切换班级" style="background:#f59e0b; color:white;">
+                <i class="fas fa-exchange-alt"></i>
+            </button>
+            <button class="ctrl-btn" onclick="app.logout()" title="退出登录" style="background:#ef4444;"><i class="fas fa-sign-out-alt"></i></button>
+        </div>
+    </div>
+
+<div id="class-selection-screen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:radial-gradient(circle at center, #111827 0%, #000 100%); z-index:5000; flex-direction:column; align-items:center; justify-content:center;">
+        
+        <div class="particles-container">
+            <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+        </div>
+
+        <div class="holo-planet-container">
+            <div class="stream-light"></div>
+            <div class="holo-ring"></div>
+            <div class="holo-planet"></div>
+        </div>
+
+        <div id="class-welcome-box" style="text-align:center; margin-bottom:50px; position:relative; z-index:10;">
+            <!-- Content will be dynamically generated by JS -->
+        </div>
+
+        <div id="class-list-container" style="display:flex; gap:30px; flex-wrap:wrap; justify-content:center; max-width:1200px; position:relative; z-index:10;">
+            </div>
+
+        </div>
+
+<!-- 新增：网站收藏 Modal -->
+<div id="website-modal" class="modal">
+    <div class="modal-box" style="width: 600px; background: #1a1a1a; border: 1px solid #444;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #333; padding-bottom:15px;">
+            <h3 style="margin:0; font-size:1.5rem; color:#0ea5e9;"><i class="fas fa-globe"></i> 常用网站云收藏</h3>
+            <button class="close-modal" onclick="el('website-modal').style.display='none'" style="position:static;"><i class="fas fa-times"></i></button>
+        </div>
+        
+        <div class="web-input-group">
+            <input id="web-input-title" class="web-input" placeholder="网站名称 (例如: B站、百度)">
+            <input id="web-input-url" class="web-input" placeholder="网址 (例如: bilibili.com)">
+            <button class="web-add-btn" onclick="app.addWebsite()"><i class="fas fa-plus"></i> 添加</button>
+        </div>
+
+        <div id="web-list" class="web-list-container">
+            <!-- 列表将由 JS 动态生成 -->
+            <div style="text-align:center; color:#666; padding:20px;">正在从云端加载...</div>
+        </div>
+    </div>
+</div>
+    <div id="import-modal" class="modal">
+        <div class="modal-box" style="width:600px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h3>📂 导入 <span id="import-class-name" style="color:var(--primary)"></span> 学生名单</h3>
+                <button class="close-modal" onclick="el('import-modal').style.display='none'"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div style="background:#222; padding:15px; border-radius:8px; margin-bottom:15px; border:1px dashed #555;">
+                <div style="font-size:0.9rem; color:#aaa; margin-bottom:10px;">方法一：直接读取 TXT 文件 (推荐)</div>
+                <button class="upload-btn-ui" onclick="el('txt-roster-loader').click()" style="width:100%; justify-content:center;">
+                    <i class="fas fa-file-alt"></i> 选择本地 TXT 名单文件
+                </button>
+                <input type="file" id="txt-roster-loader" accept=".txt" style="display:none" onchange="app.handleTxtImport(this)">
+                <div style="font-size:0.8rem; color:#666; margin-top:5px;">* TXT格式要求：每行一个学生，例如“张三 男”或仅“张三”</div>
+            </div>
+
+            <div style="border-top:1px solid #333; padding-top:15px;">
+                <div style="font-size:0.9rem; color:#aaa; margin-bottom:10px;">方法二：手动粘贴文本</div>
+                <textarea id="import-text" style="width:100%; height:150px; background:#111; color:white; border:1px solid #333; padding:10px;" placeholder="张三 男&#10;李四 女"></textarea>
+                <div style="margin-top:10px; text-align:right;">
+                    <button class="login-btn" style="width:auto; padding:8px 25px;" onclick="app.parseImport()">保存并上传云端</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 登录/注册 (V2) -->
+    <div id="login-screen">
+    <div class="split-container">
+        <div class="login-left-panel">
+            <div class="login-form-wrapper">
+                <div style="display:flex; align-items:center; gap:15px; margin-bottom:50px;">
+                    <div style="width:12px; height:40px; background:var(--primary); border-radius:10px;"></div>
+                    <span style="font-family:'Inter', sans-serif; font-weight:800; font-size:1.5rem; color:#1e293b; letter-spacing:-0.5px;">
+                        Welcome to Your AI Class
+                    </span>
+                </div>
+
+                <h2 style="font-size:2.5rem; margin:0 0 15px 0; color:#0f172a; font-weight:900;">欢迎回来</h2>
+                <p style="color:#64748b; margin-bottom:40px; font-size:1.1rem;">请登录以管理您的数字班级</p>
+
+                <div class="auth-tabs">
+                    <div class="auth-tab active" onclick="app.switchAuthMode('password', this)">密码登录</div>
+                    <div class="auth-tab" onclick="app.switchAuthMode('otp', this)">验证码登录</div>
+                </div>
+
+                <div class="input-group">
+                    <label>邮箱地址</label>
+                    <input type="email" id="emailInput" class="modern-input" placeholder="name@example.com" list="email-history-list">
+                    <datalist id="email-history-list"></datalist>
+                </div>
+
+                <div id="mode-password" class="auth-mode-section">
+                    <div class="input-group">
+                        <label>密码</label>
+                        <input type="password" id="passwordInput" class="modern-input" placeholder="请输入密码">
+                    </div>
+                    <button class="login-btn-wide" onclick="app.handleAuth('login')">
+                        立即登录 <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+
+                <div id="mode-otp" class="auth-mode-section" style="display:none;">
+                    <div id="otp-step-1">
+                        <button class="login-btn-wide secondary" onclick="app.sendOtp()">
+                            <i class="fas fa-paper-plane"></i> 获取验证码
+                        </button>
+                    </div>
+                    <div id="otp-step-2" style="display:none; margin-top:15px;">
+                        <div class="input-group">
+                            <label>输入6位验证码</label>
+                            <input type="text" id="otpInput" class="modern-input" placeholder="000 000" maxlength="6" style="letter-spacing: 8px; font-weight:900; font-size:1.2rem; text-align:center;">
+                        </div>
+                        <button class="login-btn-wide" onclick="app.verifyOtp()">验证并登录</button>
+                        <div style="text-align:center; margin-top:15px; color:#64748b; cursor:pointer;" onclick="app.resetOtpUI()">重新发送</div>
+                    </div>
+                </div>
+
+                <div style="margin-top:40px; text-align:center; color:#94a3b8;">
+                    还没有账号？ <span class="link-text" onclick="app.toggleAuthView('register')">免费注册</span>
+                </div>
+                <div id="auth-msg-login" class="error-msg" style="text-align:center; margin-top:20px;"></div>
+            </div>
+        </div>
+
+        <div class="login-right-panel">
+            <div class="particles-container">
+                <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+                <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+                <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+                <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+            </div>
+            
+            <div class="tech-bg-shapes">
+                <div class="shape s1"></div>
+                <div class="shape s2"></div>
+            </div>
+            
+            <div class="brand-content">
+                <div class="wild-wrapper">
+                    <div class="wild-main-title">
+                        AI 多功能教学平台
+                        <span class="wild-tag-box">V2</span>
+                    </div>
+                    
+                    <div class="wild-author-bar">
+                        DESIGNED BY LIN WEIKANG
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    </div>
+    
+    <!-- 注册界面 (独立于登录屏) -->
+    <div id="register-screen" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 9999; justify-content: center; align-items: center; flex-direction: column;">
+        <div class="login-card" style="background: #1a1a1a; padding: 40px; border-radius: 20px; border: 1px solid #333; width: 350px; text-align: center;">
+            <div class="login-title">注册新账号</div>
+            
+            <input type="text" id="regName" class="login-input" placeholder="您的尊姓大名 (如: 林老师)" style="margin-bottom: 15px;">
+            <input type="email" id="regEmail" class="login-input" placeholder="请输入邮箱">
+            <input type="password" id="regPass" class="login-input" placeholder="设置密码 (至少6位)">
+            <button class="login-btn" style="background: linear-gradient(45deg, #10b981, #059669)" onclick="app.handleAuth('register')">立即注册</button>
+            <div id="auth-msg-reg" class="error-msg"></div>
+            <div class="toggle-link" onclick="app.toggleAuthView('login')">已有账号？去登录</div>
+        </div>
+    </div>
+
+    <!-- PK 覆盖层 -->
+    <div id="winner-overlay" style="display:none;">
+        <button class="q-close-btn" onclick="app.closeOverlay()" title="关闭 (不计分)">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="pk-layout-wrapper">
+            <div class="pk-left-panel" id="pk-left-panel">
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                    <div id="pk-card-1" class="pk-card-large">
+                        <div class="effect-layer"></div>
+                        <div class="content-layer">
+                            <div class="avatar-wrapper">
+                                <img id="pk-img-1" class="avatar-img" src="">
+                                <div id="pk-pendant-1" class="rank-pendant fa"></div>
+                            </div>
+                            <div id="pk-name-1" class="pk-name">选手A</div>
+                            <div id="pk-sign-1" class="pk-sign">Sign</div>
+                            <div class="win-loss-bar">
+                                <span class="win-tag">胜 <span id="pk-win-1">0</span></span> |
+                                <span class="loss-tag">负 <span id="pk-loss-1">0</span></span>
+                            </div>
+                            <div id="pk-rank-name-1" class="pk-rank-text"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="vs-column">
+                    <div class="vs-text">V</div>
+                    <div class="vs-text">S</div>
+                </div>
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                    <div id="pk-card-2" class="pk-card-large">
+                        <div class="effect-layer"></div>
+                        <div class="content-layer">
+                            <div class="avatar-wrapper">
+                                <img id="pk-img-2" class="avatar-img" src="">
+                                <div id="pk-pendant-2" class="rank-pendant fa"></div>
+                            </div>
+                            <div id="pk-name-2" class="pk-name">选手B</div>
+                            <div id="pk-sign-2" class="pk-sign">Sign</div>
+                            <div class="win-loss-bar">
+                                <span class="win-tag">胜 <span id="pk-win-2">0</span></span> |
+                                <span class="loss-tag">负 <span id="pk-loss-2">0</span></span>
+                            </div>
+                            <div id="pk-rank-name-2" class="pk-rank-text"></div>
+                        </div>
+                    </div>
+                </div>
+                <div style="position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); display: flex; gap: 100px; z-index: 100;">
+                    <button class="pk-judge-btn btn-win" onclick="app.judgePK('left')">
+                        <i class="fas fa-trophy"></i> 左侧获胜
+                    </button>
+                    <button class="pk-judge-btn btn-win" onclick="app.judgePK('right')">
+                        右侧获胜 <i class="fas fa-trophy"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="pk-right-panel" id="pk-right-panel">
+                <div class="question-stage" id="q-stage-box">
+                    <select id="timer-select" onchange="app.resetTimer()">
+                        <option value="10">10s</option>
+                        <option value="30" selected>30s</option>
+                        <option value="60">60s</option>
+                        <option value="90">90s</option>
+                        <option value="300">300s</option>
+                    </select>
+                    <div class="q-timer" id="timer-display">30</div>
+                    <div class="q-zoom-controls">
+                        <button class="zoom-btn" onclick="app.zoomQ(0.2)" title="放大">+</button>
+                        <button class="zoom-btn" onclick="app.resetZoomQ()" title="复位">↺</button>
+                        <button class="zoom-btn" onclick="app.zoomQ(-0.2)" title="缩小">-</button>
+                    </div>
+                    <div id="question-wrapper">
+                        <div id="question-content"></div>
+                    </div>
+                    <div id="answer-content"></div>
+                    <button onclick="document.getElementById('answer-content').style.display='block'" class="show-answer-btn">答案</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 个人中心 (V1 风格 + V2 逻辑) -->
+    <div id="profile-modal" class="modal">
+        <div class="modal-box" id="profile-box">
+            <button class="close-modal" onclick="app.closeProfile()"><i class="fas fa-times"></i></button>
+            
+            <div class="profile-top-section">
+                <div class="profile-card-container"><div id="profile-preview-card" class="card"></div></div>
+                <div class="profile-info-right">
+                    <h1 id="p-name" class="info-name">姓名</h1>
+                    <div class="info-rank"><i id="p-rank-icon" class="fas"></i> <span id="p-rank-text">段位</span></div>
+                    <div id="p-sign-display" class="tech-sign-display">个性签名</div>
+                </div>
+            </div>
+            
+            <div class="profile-controls">
+                <div class="stat-row">
+                    <div class="stat-item"><span class="stat-label">胜</span><div class="stat-control"><button class="stat-btn" onclick="app.adjStat('wins', -1)">-</button><span id="p-wins" class="stat-val">0</span><button class="stat-btn" onclick="app.adjStat('wins', 1)">+</button></div></div>
+                    <div class="stat-item"><span class="stat-label">负</span><div class="stat-control"><button class="stat-btn" onclick="app.adjStat('losses', -1)">-</button><span id="p-losses" class="stat-val">0</span><button class="stat-btn" onclick="app.adjStat('losses', 1)">+</button></div></div>
+                    <div class="stat-item" style="flex:1;">
+                        <span class="stat-label">个性签名 (实时预览)</span>
+                        <input id="p-sign" class="form-input" style="width:100%; border-radius:20px; padding:5px 10px; background:#333; border:1px solid #555; color:white; font-size:1rem;" maxlength="15" oninput="app.updateSignPreview(this.value)">
+                    </div>
+                </div>
+                <div class="asset-row">
+                    <div class="asset-group">
+                        <div class="asset-header">
+                            <span>更换头像</span>
+                            <div>
+                                <span class="sm-link" onclick="app.refreshAvatars()">换一批(云端)</span> |
+                                <span class="sm-link" onclick="el('uploadAvatar').click()">上传(本地)</span>
+                            </div>
+                        </div>
+                        <div class="grid-scroll" id="avatar-grid"></div>
+                    </div>
+                    <div class="asset-group">
+                        <div class="asset-header"><span>主页背景 (鲜艳/渐变)</span></div>
+                        <div class="grid-scroll" id="bg-grid"></div>
+                    </div>
+                </div>
+                <button class="save-btn-full" onclick="app.saveProfile()">保存修改并同步到云端</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 成绩赛跑 Modal (还原 V1) -->
+    <div id="race-modal" class="modal">
+        <div class="modal-box">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h2 style="margin:0; color:var(--primary); font-family:'Zcool KuaiLe'; font-size: 2rem;"><i class="fas fa-flag-checkered"></i> 成绩赛跑</h2>
+                <button onclick="el('race-modal').style.display='none'" style="background:none; border:none; color:#aaa; cursor:pointer; font-size:1.5rem;"><i class="fas fa-times"></i></button>
+            </div>
+            <div style="display:flex; gap:30px; margin-top:20px; flex:1; overflow:hidden;">
+                <div style="width:250px; display:flex; flex-direction:column; gap:20px; border-right:1px solid #333; padding-right:20px;">
+                    <div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                            <label style="color:#aaa; font-size:1rem; font-weight:bold;">粘贴成绩 (姓名 分数)</label>
+                            <button class="sub-btn" onclick="el('raceTxtInput').click" style="padding:3px 8px; font-size:0.8rem; background:#444; color:white; border:none; border-radius:4px; cursor:pointer;"><i class="fas fa-file-alt"></i> 导入TXT</button>
+                            <input type="file" id="raceTxtInput" accept=".txt" style="display:none" onchange="app.handleRaceImport(this)">
+                        </div>
+                        <div style="color:#666; font-size:0.8rem; margin-bottom:5px;">同分不能在同道，每道限3人</div>
+                        <textarea id="race-input" oninput="app.saveRaceData()" style="width:100%; height:400px; background:#111; border:1px solid #333; color:white; padding:15px; border-radius:12px; box-sizing:border-box; font-size:1rem; line-height:1.5;" placeholder="张三 98&#10;李四 95&#10;王五 100"></textarea>
+                    </div>
+                    <div>
+                        <button onclick="app.initRace()" class="save-btn-full" style="background:#555;">加载/分配跑道</button>
+                        <button onclick="app.runRace()" class="save-btn-full" style="margin-top:10px; background: #3b82f6;">开始赛跑</button>
+                    </div>
+                </div>
+                <div style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+                     <div style="text-align:right; color:#777; font-size:0.8rem; margin-bottom:5px;">
+                         1分 = 15px | 10条跑道 | 自动防重叠
+                     </div>
+                     <div id="race-view" class="race-scroll-view">
+                         <div id="race-board" class="race-track-board"></div>
+                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 智能分析 Modal (还原 V1) -->
+    <div id="analysis-modal" class="modal">
+        <div class="modal-box">
+            <div class="analysis-header">
+                <h2><i class="fas fa-chart-line"></i> 学生成绩分析报告</h2>
+                <div>
+                    <button class="upload-btn-ui" onclick="app.checkAnalysisData()" style="margin-right:10px; background:#eab308; color:#000;">🛠️ 数据自检</button>
+                    <button class="upload-btn-ui" onclick="app.toggleAnalysisMode('single')" style="margin-right:10px; background:#444;">单次分析</button>
+                    <button class="upload-btn-ui btn-trend" onclick="app.toggleAnalysisMode('trend')">📈 趋势对比</button>
+                    <button onclick="el('analysis-modal').style.display='none'" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer; margin-left:20px;"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+            
+            <div class="analysis-content">
+                <div id="single-report-section">
+                    <div class="upload-section" style="grid-column: 1 / -1;">
+                        <button class="upload-btn-ui" onclick="el('analysisFile').click()"><i class="fas fa-file-excel"></i> 选择 Excel 文件 (.xlsx)</button>
+                        <input type="file" id="analysisFile" accept=".xlsx" style="display:none" onchange="app.handleAnalysisUpload(this)">
+                        <span style="color:#aaa; font-size:0.9rem;">请上传包含“姓名”及各科成绩的表格</span>
+                    </div>
+
+                    <!-- 左侧：图表区 -->
+                    <div class="charts-column">
+                        <div class="chart-container" style="min-height: 300px;">
+                            <div class="chart-title">各科平均分横向对比</div>
+                            <div id="avgBarChart" style="flex:1;"></div>
+                        </div>
+                        
+                        <div class="advice-box">
+                            <div style="font-weight:bold; margin-bottom:10px; color:#60a5fa;"><i class="fas fa-robot"></i> AI 分析建议:</div>
+                            <div id="adviceText">暂无数据，请先上传 Excel 文件。</div>
+                        </div>
+
+                        <div class="chart-container">
+                            <div class="chart-title">各科成绩分布 (Bar)</div>
+                            <div id="barChart" style="flex:1;"></div>
+                        </div>
+                        
+                        <!-- 饼图 -->
+                        <div class="chart-container with-sidebar">
+                            <div class="chart-sidebar" id="pie-subject-switch"></div>
+                            <div style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+                                <div class="chart-title">分数段占比 (Pie)</div>
+                                <div id="pieChart" style="flex:1;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右侧：全高排行榜 -->
+                    <div class="analysis-sidebar">
+                        <div class="rank-list-box">
+                            <div class="chart-title" style="color:#fbbf24;">
+                                <span>🏆 班级排行榜</span>
+                                <div id="rank-subject-switch" class="sub-switch-group"></div>
+                            </div>
+                            <div class="rank-scroll-area">
+                                <div id="rankList"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="trend-section">
+                    <div class="upload-section" style="border-color: #d946ef;">
+                        <button class="upload-btn-ui btn-trend" onclick="el('trendFiles').click()"><i class="fas fa-layer-group"></i> 选择多个 Excel 文件</button>
+                        <input type="file" id="trendFiles" accept=".xlsx" multiple style="display:none" onchange="app.handleTrendUpload(this)">
+                        <span style="color:#aaa; font-size:0.9rem;">按住 Ctrl/Cmd 可多选文件</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 20px; height: 100;">
+                        <div class="chart-container" id="trend-c1" style="flex:1;">
+                            <div class="chart-title">各科平均分趋势 (Subject Trend)</div>
+                            <div id="trendChart" style="width:100%; height:100%;"></div>
+                        </div>
+                        <div class="chart-container" id="trend-c2" style="flex:1;">
+                            <div class="chart-title">各分数段人数变化 (Distribution Trend)</div>
+                            <div id="trendDistChart" style="width:100%; height:100%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 云端备课 Modal (新增) -->
+    <div id="course-admin-modal" class="modal">
+        <div class="modal-box" style="width:800px; height:80vh; display:flex; flex-direction:column;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                <h3>📂 云端备课中心</h3>
+                <button class="close-modal" onclick="el('course-admin-modal').style.display='none'"><i class="fas fa-times"></i></button>
+            </div>
+            <div style="display:flex; flex:1; gap:20px; overflow:hidden;">
+                <div style="width:250px; border-right:1px solid #333; display:flex; flex-direction:column;">
+                    <button class="sub-btn" onclick="app.createNewLesson()" style="margin-bottom:10px;">+ 新建课程</button>
+                    <div id="admin-lesson-list" style="flex:1; overflow-y:auto"></div>
+                </div>
+                <div style="flex:1; display:flex; flex-direction:column;">
+                    <div id="admin-step-editor" style="display:none; flex-direction:column; height:100%">
+                        <h4 id="editor-title" style="margin:0 0 10px 0; color:var(--primary);">正在编辑: ...</h4>
+                        <div id="admin-step-list" style="flex:1; overflow-y:auto; background:#111; padding:10px; border:1px solid #333; margin-bottom:10px;"></div>
+                        
+                        <div style="background:#222; padding:10px; border-radius:8px;">
+                            <span style="font-size:0.9rem; color:#aaa;">添加环节:</span>
+                            <div style="display:flex; gap:5px; margin-top:5px;">
+                                <button class="sub-btn" onclick="app.addStep('video_bilibili')">📺 B站视频</button>
+                                <button class="sub-btn" onclick="app.addStep('image')">🖼️ 图片</button>
+                                <button class="sub-btn" onclick="app.addStep('html_game')">🎮 网页游戏</button>
+                                </div>
+                        </div>
+                    </div>
+                    <div id="admin-empty-state" style="margin:auto; color:#666;">请在左侧选择或新建课程</div>
+                </div>
+            </div>
+        </div>
+    </div>
+<!-- ============================================ -->
+    <!-- 缺失的修复代码：创建班级滚轮 Modal (V3.8) -->
+    <!-- ============================================ -->
+    <div id="roller-modal" class="modal" style="display:none;">
+        <div class="roller-modal-box">
+            <div class="roller-header">
+                <div style="font-family:'Russo One'; font-size:1.8rem; color:#333; margin-bottom:5px;">
+                    CREATE NEW CLASS
+                </div>
+                <div style="font-size:0.9rem; color:#94a3b8; font-weight:bold;">
+                    滑动滚轮选择年级与班级
+                </div>
+            </div>
+            
+            <div class="roller-stage">
+                <div class="roller-highlight-bar"></div>
+                
+                <!-- 年级滚轮 -->
+                <div id="roller-grade" class="roller-column">
+                    <!-- JS 会在这里生成年级选项 -->
+                </div>
+                
+                <div style="font-size:2rem; font-weight:900; color:#cbd5e1; z-index:10;">-</div>
+                
+                <!-- 班级滚轮 -->
+                <div id="roller-class" class="roller-column">
+                    <!-- JS 会在这里生成班级选项 -->
+                </div>
+            </div>
+            
+            <div class="roller-footer">
+                <button class="btn-wild-cancel" onclick="el('roller-modal').style.display='none'">
+                    取消 (CANCEL)
+                </button>
+                <button class="btn-wild-confirm" onclick="app.confirmRollerCreate()">
+                    确认创建 <span id="roller-preview-text" style="font-size:0.9rem; opacity:0.8;">(...)</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- 隐藏的输入框 -->
+    <input type="file" id="uploadAvatar" accept="image/*" style="display:none" onchange="app.handleUploadAvatar(this)">
+    <input type="file" id="usbLoader" webkitdirectory directory multiple style="display:none" onchange="app.loadUsbLesson(this)">
+    <input type="file" id="genericFileLoader" style="display:none" multiple accept=".docx,.doc,.pdf,.xlsx,.xls,.mp4,.webm,.jpg,.jpeg,.png,.gif,.html,.htm,.pptx" onchange="app.handleGenericUpload('practice', event.target.files)">
+    <input type="file" id="quizFile" accept=".docx,.txt,.pdf" style="display:none" onchange="app.loadQuiz(this)">
+    
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
