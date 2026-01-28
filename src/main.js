@@ -2562,26 +2562,32 @@ async deleteClass(classId, className) {
         }
         // ------------------------------
 
-        // DeepSeek 配置
-        const DEEPSEEK_KEY = "sk-b1f9be29112748bd9af76010cc303ada"; 
         const systemPrompt = `你是一位初中老师。请用简练、幽默的口语回答。不要Markdown。`;
+        const DEEPSEEK_PROXY_URL = import.meta.env.VITE_DEEPSEEK_PROXY_URL ?? '';
+        if (!DEEPSEEK_PROXY_URL) {
+            status.innerText = "⚠️ 未配置 AI 服务";
+            status.style.color = "#fbbf24";
+            textDisplay.innerText = "未配置 DeepSeek 代理服务地址（VITE_DEEPSEEK_PROXY_URL）。为安全起见，前端不能直接使用 API Key。";
+            avatar.classList.remove('speaking');
+            return;
+        }
 
         try {
-            const response = await fetch("https://api.deepseek.com/chat/completions", {
+            const response = await fetch(DEEPSEEK_PROXY_URL, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${DEEPSEEK_KEY}` },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    model: "deepseek-chat",
-                    messages: [
-                        { role: "system", content: systemPrompt },
-                        { role: "user", content: promptText }
-                    ],
-                    stream: false
+                    promptText,
+                    systemPrompt
                 })
             });
 
             const data = await response.json();
-            const aiText = data.choices[0].message.content;
+            const aiText =
+                (typeof data?.text === 'string' && data.text) ||
+                (typeof data?.choices?.[0]?.message?.content === 'string' && data.choices[0].message.content) ||
+                '';
+            if (!aiText) throw new Error("AI 返回内容为空");
 
             status.innerText = "💡 AI 回答：";
             status.style.color = "#4ade80";
