@@ -725,7 +725,7 @@ const wb = {
 const app = {
     data: {
         // === 基础数据 ===
-        user: null, currentClass: null, students: [], groups: [], 
+        user: null, userProfile: null, currentClass: null, students: [], groups: [], 
         isRunning: false, timer: null, mode: 'single', targetGroup: null, 
         tempId1: null, tempId2: null, editingId: null, calledSet: new Set(),
         
@@ -966,6 +966,49 @@ const app = {
 
     async logout() { if (supabaseClient) await supabaseClient.auth.signOut(); location.reload(); },
 
+    isProActive() {
+        const p = this.data.userProfile;
+        if (!p) return false;
+        if (p.membership_tier !== 'pro') return false;
+        if (!p.membership_expire_at) return true;
+        const exp = new Date(p.membership_expire_at);
+        if (Number.isNaN(exp.getTime())) return false;
+        return exp.getTime() > Date.now();
+    },
+
+    formatExpireText(expireAt) {
+        if (!expireAt) return '永久';
+        const d = new Date(expireAt);
+        if (Number.isNaN(d.getTime())) return String(expireAt);
+        return d.toLocaleString();
+    },
+
+    async refreshUserProfile() {
+        if (!supabaseClient || !this.data.user) return;
+        const { data, error } = await supabaseClient
+            .from('profiles')
+            .select('membership_tier, membership_expire_at')
+            .eq('id', this.data.user.id)
+            .maybeSingle();
+
+        if (error) {
+            this.data.userProfile = { membership_tier: 'free', membership_expire_at: null };
+            return;
+        }
+
+        this.data.userProfile = data || { membership_tier: 'free', membership_expire_at: null };
+    },
+
+    updateMembershipUI() {
+        const tierEl = el('membership-tier-text');
+        const expEl = el('membership-expire-text');
+        if (!tierEl || !expEl) return;
+        const p = this.data.userProfile;
+        const isPro = p?.membership_tier === 'pro';
+        tierEl.innerText = isPro ? '专业版' : '免费版';
+        expEl.innerText = isPro ? this.formatExpireText(p?.membership_expire_at) : '-';
+    },
+
     // === 修改：初始化不再直接加载学生，而是加载班级 ===
     async init() {
         if (!this.data.user) return;
@@ -973,6 +1016,8 @@ const app = {
         // 1. 先隐藏登录页
         el('login-screen').style.display = 'none';
         this.renderEmailHistory();
+
+        await this.refreshUserProfile();
         
         // 2. 加载班级列表，并显示“班级选择页”
         await this.loadClasses();
@@ -1500,6 +1545,7 @@ async deleteClass(classId, className) {
         const r = this.getRankInfo(s.wins);
         
         el('profile-modal').style.display='flex'; 
+        this.updateMembershipUI();
         el('p-name').innerText=s.name; 
         el('p-rank-text').innerText = r.name;
         el('p-rank-icon').className = `fas ${r.icon}`;
@@ -1802,6 +1848,41 @@ async deleteClass(classId, className) {
         this.loadWebsites();
     },
 
+    async openCloudDrive() {
+        if (!supabaseClient || !this.data.user) return alert("请先登录");
+        await this.refreshUserProfile();
+        this.updateMembershipUI();
+        if (!this.isProActive()) {
+            const ok = confirm("此功能为 VIP 专享，请升级专业版。\n\n点击“确定”输入激活码，点击“取消”返回。");
+            if (ok) this.promptRedeemVipCode();
+            return;
+        }
+        this.openCourseware();
+    },
+
+    promptRedeemVipCode() {
+        const code = prompt("请输入激活码：");
+        if (!code) return;
+        this.redeemCode(code);
+    },
+
+    async redeemCode(code) {
+        if (!supabaseClient || !this.data.user) return alert("请先登录");
+        const trimmed = String(code).trim();
+        if (!trimmed) return alert("激活码不能为空");
+
+        const { error } = await supabaseClient.rpc('redeem_vip_code', { input_code: trimmed });
+        if (error) {
+            alert("❌ 激活失败: " + error.message);
+            return;
+        }
+
+        alert("✅ 激活成功！");
+        await this.refreshUserProfile();
+        this.updateMembershipUI();
+        if (this.isProActive()) this.openCourseware();
+    },
+
     openCourseware() {
         el('courseware-modal').style.display = 'flex';
         const status = el('courseware-status');
@@ -1815,6 +1896,12 @@ async deleteClass(classId, className) {
                 </div>`;
         }
         this.loadCoursewareList();
+    },
+
+    normalizeCoursewareName(name) {
+        const n = String(name ?? '').trim();
+        if (!n) return '未命名文件';
+        return n.length > 120 ? n.slice(0, 120) : n;
     },
 
     triggerCoursewareUploader() {
@@ -1858,19 +1945,41 @@ async deleteClass(classId, className) {
         listDiv.innerHTML = '<div style="text-align:center;color:#666;padding:20px;"><i class="fas fa-circle-notch fa-spin"></i> 加载中...</div>';
         if (status) status.innerText = '';
 
-        const prefix = `${this.data.user.id}/`;
-        const { data, error } = await supabaseClient.storage.from('courseware').list(prefix, { limit: 200, sortBy: { column: 'updated_at', order: 'desc' } });
-        if (error) {
-            listDiv.innerHTML = `<div style="text-align:center; color:#ef4444; padding:20px;">加载失败: ${error.message}</div>`;
+        const { data, error } = await supabaseClient
+            .from('courseware_files')
+            .select('id, object_path, original_name, mime_type, created_at')
+            .eq('user_id', this.data.user.id)
+            .order('created_at', { ascending: false })
+            .limit(200);
+
+        if (!error) {
+            const items = (data || []).map(x => ({
+                id: x.id,
+                objectPath: x.object_path,
+                name: this.normalizeCoursewareName(x.original_name),
+                mimeType: x.mime_type || '',
+                createdAt: x.created_at || ''
+            }));
+            this.data.courseware = items;
+            this.renderCoursewareList();
             return;
         }
 
-        const items = (data || []).filter(x => x && x.name && !x.name.endsWith('/')).map(x => ({
-            name: x.name,
-            fullPath: `${prefix}${x.name}`,
-            updatedAt: x.updated_at || x.created_at || '',
-            size: x.metadata?.size || 0
-        }));
+        const prefix = `${this.data.user.id}/`;
+        const fallback = await supabaseClient.storage.from('courseware').list(prefix, { limit: 200, sortBy: { column: 'updated_at', order: 'desc' } });
+        if (fallback.error) {
+            listDiv.innerHTML = `<div style="text-align:center; color:#ef4444; padding:20px;">加载失败: ${fallback.error.message}</div>`;
+            return;
+        }
+
+        const items = (fallback.data || [])
+            .filter(x => x && x.name && !x.name.endsWith('/'))
+            .map(x => ({
+                objectPath: `${prefix}${x.name}`,
+                name: x.name,
+                createdAt: x.updated_at || x.created_at || '',
+                mimeType: ''
+            }));
 
         this.data.courseware = items;
         this.renderCoursewareList();
@@ -1892,15 +2001,15 @@ async deleteClass(classId, className) {
         listDiv.innerHTML = '';
         items.forEach(it => {
             const ext = (it.name.split('.').pop() || '').toLowerCase();
-            const isPdf = ext === 'pdf';
-            const isMp4 = ext === 'mp4';
+            const isPdf = it.mimeType === 'application/pdf' || ext === 'pdf';
+            const isMp4 = it.mimeType === 'video/mp4' || ext === 'mp4';
             const icon = isPdf ? 'fa-file-pdf' : isMp4 ? 'fa-film' : 'fa-file';
 
             const div = document.createElement('div');
-            div.className = `courseware-item${activeFullPath && activeFullPath === it.fullPath ? ' active' : ''}`;
+            div.className = `courseware-item${activeFullPath && activeFullPath === it.objectPath ? ' active' : ''}`;
             div.onclick = () => this.playCourseware(it);
 
-            const t = it.updatedAt ? new Date(it.updatedAt).toLocaleString() : '';
+            const t = it.createdAt ? new Date(it.createdAt).toLocaleString() : '';
             div.innerHTML = `
                 <div class="courseware-icon"><i class="fas ${icon}"></i></div>
                 <div class="courseware-meta">
@@ -1933,12 +2042,12 @@ async deleteClass(classId, className) {
         const status = el('courseware-status');
         if (!preview) return;
 
-        this.renderCoursewareList(item.fullPath);
+        this.renderCoursewareList(item.objectPath);
         preview.innerHTML = '<div style="font-size:1.2rem; color:#999;"><i class="fas fa-spinner fa-spin"></i> 加载中...</div>';
         if (status) status.innerText = '';
 
         try {
-            const url = await this.getCoursewareUrl(item.fullPath);
+            const url = await this.getCoursewareUrl(item.objectPath);
             const ext = (item.name.split('.').pop() || '').toLowerCase();
             if (ext === 'mp4') {
                 preview.innerHTML = `<video src="${url}" controls autoplay style="max-width:100%; max-height:100%; width:100%; height:100%;"></video>`;
@@ -1991,6 +2100,14 @@ async deleteClass(classId, className) {
                 await this.loadCoursewareList();
                 return;
             }
+
+            await supabaseClient.from('courseware_files').insert([{
+                user_id: this.data.user.id,
+                object_path: path,
+                original_name: this.normalizeCoursewareName(file.name),
+                mime_type: file.type || null
+            }]);
+
             uploaded++;
             if (status) status.innerText = `上传中...（已完成 ${uploaded}/${files.length}）`;
         }
