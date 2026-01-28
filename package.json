@@ -1,7 +1,7 @@
 {
-  "name": "v2-vite-vanilla",
+  "name": "my-ai-platform",
   "private": true,
-  "version": "0.0.0",
+  "version": "3.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
