@@ -985,18 +985,29 @@ const app = {
 
     async refreshUserProfile() {
         if (!supabaseClient || !this.data.user) return;
-        const { data, error } = await supabaseClient
+        const defaults = { membership_tier: 'free', membership_expire_at: null };
+
+        const byId = await supabaseClient
             .from('profiles')
             .select('membership_tier, membership_expire_at')
             .eq('id', this.data.user.id)
             .maybeSingle();
-
-        if (error) {
-            this.data.userProfile = { membership_tier: 'free', membership_expire_at: null };
+        if (!byId.error && byId.data) {
+            this.data.userProfile = byId.data;
             return;
         }
 
-        this.data.userProfile = data || { membership_tier: 'free', membership_expire_at: null };
+        const byUserId = await supabaseClient
+            .from('profiles')
+            .select('membership_tier, membership_expire_at')
+            .eq('user_id', this.data.user.id)
+            .maybeSingle();
+        if (!byUserId.error && byUserId.data) {
+            this.data.userProfile = byUserId.data;
+            return;
+        }
+
+        this.data.userProfile = defaults;
     },
 
     updateMembershipUI() {
@@ -1871,13 +1882,19 @@ async deleteClass(classId, className) {
         const trimmed = String(code).trim();
         if (!trimmed) return alert("激活码不能为空");
 
-        const { error } = await supabaseClient.rpc('redeem_vip_code', { input_code: trimmed });
+        const { data, error } = await supabaseClient.rpc('redeem_vip_code', { input_code: trimmed });
         if (error) {
             alert("❌ 激活失败: " + error.message);
             return;
         }
 
         alert("✅ 激活成功！");
+        if (data && typeof data === 'object') {
+            const tier = data.membership_tier ?? data.tier;
+            const expire = data.membership_expire_at ?? data.expire_at;
+            if (tier) this.data.userProfile = { membership_tier: tier, membership_expire_at: expire ?? null };
+        }
+
         await this.refreshUserProfile();
         this.updateMembershipUI();
         if (this.isProActive()) this.openCourseware();
