@@ -1,0 +1,100 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Multi-functional Teaching Platform</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#F97316",
+                        "primary-hover": "#EA580C",
+                        "brand-dark": "#0F172A",
+                    },
+                    fontFamily: {
+                        display: ["'Noto Sans SC'", "sans-serif"],
+                        sans: ["'Inter'", "'Noto Sans SC'", "sans-serif"],
+                    },
+                    backgroundImage: {
+                        'space-gradient': 'linear-gradient(to bottom, #0F172A, #1E1B4B)',
+                        'glossy-orange': 'linear-gradient(to bottom, #FF9B42, #F97316, #EA580C)',
+                    },
+                    animation: {
+                        'float': 'float 6s ease-in-out infinite',
+                        'float-delayed': 'float 6s ease-in-out 3s infinite',
+                        'twinkle': 'twinkle 4s infinite ease-in-out',
+                        'pulse-glow': 'pulse-glow 3s infinite',
+                        'shimmer': 'shimmer 3s infinite linear',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-20px)' },
+                        },
+                        twinkle: {
+                            '0%, 100%': { opacity: '0.6' },
+                            '50%': { opacity: '1' },
+                        },
+                        shimmer: {
+                            '0%': { transform: 'translateX(-150%) skewX(-20deg)' },
+                            '50%, 100%': { transform: 'translateX(150%) skewX(-20deg)' },
+                        },
+                        'pulse-glow': {
+                            '0%, 100%': { opacity: '1', boxShadow: '0 0 20px rgba(249, 115, 22, 0.4)' },
+                            '50%': { opacity: '0.8', boxShadow: '0 0 40px rgba(249, 115, 22, 0.6)' },
+                        }
+                    }
+                },
+            },
+        };
+    </script>
+    <style>
+        body { font-family: 'Inter', 'Noto Sans SC', sans-serif; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+        }
+        .btn-3d {
+            background: linear-gradient(180deg, #F97316 0%, #C2410C 100%);
+            box-shadow: 0 4px 0 #9A3412, 0 8px 15px rgba(0,0,0,0.1);
+            transition: all 0.1s;
+        }
+        .btn-3d:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #9A3412, 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .stars {
+            background-image: 
+                radial-gradient(1px 1px at 20px 30px, #fff, rgba(0,0,0,0)),
+                radial-gradient(1px 1px at 40px 70px, #fff, rgba(0,0,0,0)),
+                radial-gradient(1px 1px at 90px 40px, #fff, rgba(0,0,0,0));
+            background-repeat: repeat;
+            background-size: 150px 150px;
+        }
+    </style>
+
+<link rel="stylesheet" href="/index.css">
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
+  }
+}
+</script>
+  <script type="module" crossorigin src="/stitch/login/assets/index-CMNmcpGG.js"></script>
+</head>
+<body class="m-0 p-0 overflow-hidden">
+    <div id="root"></div>
+</body>
+</html>

@@ -1,0 +1,99 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Student Personal Card - Pastel Playful</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Fredoka"', '"Noto Sans SC"', 'sans-serif'],
+                        display: ['"Fredoka"', 'sans-serif'],
+                    },
+                    colors: {
+                        pastel: {
+                            cream: "#FFF9E6",
+                            peach: "#FFE4E1",
+                            mint: "#E0F2F1",
+                            lemon: "#FFF9C4",
+                            lavender: "#F3E5F5",
+                            sky: "#E1F5FE",
+                            rose: "#FFCDD2",
+                            text: "#5D4037",
+                            accent: "#FF8A65",
+                        }
+                    },
+                    borderRadius: {
+                        DEFAULT: "1.5rem",
+                        'xl': '1.5rem',
+                        '2xl': '2rem',
+                        '3xl': '2.5rem',
+                        '4xl': '3rem',
+                    },
+                    boxShadow: {
+                        'soft': '8px 8px 0px 0px rgba(255, 204, 188, 0.4), 0 4px 20px rgba(0,0,0,0.05)',
+                        'card': '0 10px 40px -10px rgba(255, 183, 77, 0.2)',
+                        'inner-soft': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.03)',
+                        'bubbly': '0 8px 0 #E0E0E0',
+                        'bubbly-red': '0 4px 0 #EF5350',
+                        'bubbly-green': '0 4px 0 #66BB6A',
+                    },
+                    animation: {
+                        'blob': 'blob 7s infinite',
+                        'float': 'float 3s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        blob: {
+                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        }
+                    }
+                },
+            },
+        };
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .bg-pastel-gradient {
+                background: linear-gradient(135deg, #FFF8E1 0%, #FFECB3 50%, #FFCCBC 100%);
+            }
+            .animation-delay-2000 { animation-delay: 2s; }
+            .animation-delay-4000 { animation-delay: 4s; }
+            .filled { font-variation-settings: 'FILL' 1; }
+        }
+        ::-webkit-scrollbar { width: 10px; }
+        ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.5); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background-color: #FFCC80; border-radius: 10px; }
+    </style>
+
+<link rel="stylesheet" href="/index.css">
+<script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://esm.sh/@google/genai@^1.39.0",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "recharts": "https://esm.sh/recharts@^3.7.0"
+  }
+}
+</script>
+  <script type="module" crossorigin src="/stitch/student-profile/assets/index-V--Xe1_9.js"></script>
+</head>
+<body class="bg-pastel-gradient text-pastel-text font-sans p-4 min-h-screen">
+    <div id="root"></div>
+</body>
+</html>

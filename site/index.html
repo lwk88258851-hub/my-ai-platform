@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI多功能班级教学系统 - V3</title>
+    
+    <!-- 字体与图标库 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Ma+Shan+Zheng&family=Zcool+KuaiLe&family=Orbitron:wght@500;900&family=Russo+One&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- 核心功能库（已改为 npm + import，由 src/main.js 统一引入） -->
+  <script type="module" crossorigin src="/assets/index-BogN4TwW.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-C-STBMZt.css">
+</head>
+<body>
+
+    <div id="app-container">
+        <!-- 左侧 (教学白板 - 更新版) -->
+        <div id="lecture-panel">
+            <div class="panel-tabs">
+                <div class="p-tab active" onclick="app.switchTab('teaching')"><i class="fas fa-chalkboard-teacher"></i> 教学演示 (播放)</div>
+                <div class="p-tab" onclick="app.switchTab('practice')"><i class="fas fa-edit"></i> 自由练习 (万能)</div>
+                <div class="p-tab" onclick="app.toggleFullScreen('lecture-panel')" style="flex:0; padding:12px 20px; color:var(--primary);" title="全屏/退出">
+                    <i class="fas fa-expand"></i>
+                </div>
+            </div>
+
+            <div class="whiteboard-wrapper" id="wb-wrapper">
+                <div class="wb-pages-sidebar" id="wb-pages-sidebar">
+                    <div class="wb-pages-actions">
+                        <button class="wb-page-action" id="wb-pages-toggle-btn" onclick="wb.togglePagesSidebar()" title="收缩/展开"><i class="fas fa-chevron-left"></i></button>
+                        <button class="wb-page-action" id="wb-page-add-btn" onclick="wb.addPage()" title="新增页面"><i class="fas fa-plus"></i></button>
+                        <button class="wb-page-action" id="wb-page-del-btn" onclick="wb.deletePage()" title="删除当前页面"><i class="fas fa-trash"></i></button>
+                    </div>
+                    <div class="wb-pages-list" id="wb-pages-list"></div>
+                </div>
+
+                <div class="wb-stage" id="wb-stage">
+                    <div id="zoom-area" class="zoom-container">
+                    
+                    <div id="course-player-layer" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:10; background:#ffffff; display:flex; flex-direction:column;">
+                        
+                        <div style="height:50px; background:#f8fafc; display:flex; align-items:center; padding:0 20px; justify-content:space-between; border-bottom:2px solid #e2e8f0;">
+                            <div style="font-size:1rem; color:#0f172a; font-weight:bold; display:flex; align-items:center; gap:10px;">
+                                <i class="fas fa-folder-open" style="color:var(--primary);"></i> 
+                                <span id="cp-lesson-title">等待读取课件...</span>
+                            </div>
+                            <div style="font-size:0.9rem; background:#0f172a; color:#fff; padding:4px 12px; border-radius:20px; font-weight:bold; transform: skew(-10deg);">
+                                STEP <span id="cp-step-index" style="color:#fbbf24;">0</span> / <span id="cp-total-steps">0</span>
+                            </div>
+                        </div>
+
+                        <div id="cp-content-area" style="flex:1; position:relative; overflow:auto; display:flex; justify-content:center; align-items:center; background:#ffffff;">
+                            <div style="color:#94a3b8; text-align:center;">
+                                <div style="width:100px; height:100px; background:#f1f5f9; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 20px auto;">
+                                    <i class="fas fa-cloud-upload-alt" style="font-size:3rem; color:#cbd5e1;"></i>
+                                </div>
+                                <div style="font-size:1.5rem; font-weight:bold; color:#cbd5e1;">准备就绪</div>
+                                <div style="margin-top:5px;">请点击底部黄色按钮读取课件</div>
+                            </div>
+                        </div>
+
+                        <div style="height:90px; background:linear-gradient(to top, #ffffff, rgba(255,255,255,0)); display:flex; align-items:center; justify-content:center; gap:40px; padding-bottom:10px;">
+                            
+                            <button onclick="app.prevStep()" class="wild-nav-btn wild-btn-prev">
+                                <i class="fas fa-arrow-left"></i> PREV
+                            </button>
+                            
+                            <button onclick="app.nextStep()" class="wild-nav-btn wild-btn-next">
+                                NEXT <i class="fas fa-arrow-right"></i>
+                            </button>
+                            
+                        </div>
+                    </div>                    <div id="practice-layer" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:11; background:#000; display:none; flex-direction:column;">
+                        <div style="padding:10px; background:#222; text-align:center; border-bottom:1px solid #333;">
+                            <button class="reupload-btn" style="position:static; display:inline-flex;" onclick="el('genericFileLoader').click()">
+                                <i class="fas fa-cloud-upload-alt"></i> 打开任意练习文件 (PDF/Word/视频/图)
+                            </button>
+                        </div>
+                        <div id="viewer-practice" class="resource-viewer" style="flex:1; display:flex;"></div>
+                    </div>
+
+                    <div id="grid-layer">
+                        <div class="axis-container">
+                            <div class="axis-x"></div>
+                            <div class="axis-y"></div>
+                            <div class="origin-label">O</div>
+                        </div>
+                    </div>
+
+                    <canvas id="drawing-canvas" class="drawing-canvas" style="z-index:50;"></canvas>
+
+                </div>
+
+                <div id="ai-assistant-card" class="ai-floater" style="display:none;">
+                    <div class="ai-avatar-box">
+                        <div id="ai-icon-visual" class="ai-icon">🤖</div>
+                        <div class="ai-wave"></div>
+                    </div>
+                    <div class="ai-chat-bubble">
+                        <div id="ai-status-label" style="font-size:0.8rem; color:#aaa; margin-bottom:4px;">等待指令...</div>
+                        <div id="ai-text-content" style="font-size:1rem; font-weight:bold; color:white; line-height:1.4;">
+                            你好，我是你的 AI 助教。
+                        </div>
+                    </div>
+                </div>
+
+                <div class="wb-toolbar" id="wb-toolbar">
+                    <button class="wb-btn toggle-btn" onclick="app.toggleBar('wb-toolbar', this)"><i class="fas fa-chevron-left"></i></button>
+                    <div class="color-palette">
+                        <div class="color-dot active" style="background:red" onclick="wb.setColor('red', this)"></div>
+                        <div class="color-dot" style="background:yellow" onclick="wb.setColor('yellow', this)"></div>
+                        <div class="color-dot" style="background:white" onclick="wb.setColor('white', this)"></div>
+                    </div>
+                    <button class="wb-btn" id="btn-cursor" onclick="wb.setMode('cursor')" title="鼠标操作(点视频/翻页)"><i class="fas fa-mouse-pointer"></i></button>
+                    <button class="wb-btn" id="btn-pen" onclick="wb.setMode('pen')" title="画笔书写"><i class="fas fa-pen"></i></button>
+                    <button class="wb-btn" onclick="wb.setMode('eraser')"><i class="fas fa-eraser"></i></button>
+                    
+                    <button class="wb-btn" id="mic-btn" onclick="app.toggleVoice()" title="点击开启/关闭语音对话" style="border:1px solid #d946ef; color:#d946ef;">
+                        <i class="fas fa-microphone-slash"></i>
+                    </button>                    <button class="wb-btn" onclick="app.manualInput()" title="打字输入指令" style="color:white; border:1px solid #aaa;">
+                        <i class="fas fa-keyboard"></i>
+                    </button>
+
+                    <button class="wb-btn" onclick="app.askDeepSeek('帮我出一道勾股定理的计算题')" style="border:1px solid lime; color:lime;">测</button>                    <button class="wb-btn" onclick="wb.clear()"><i class="fas fa-trash"></i></button>
+                </div>                <!-- 右侧灵动学科坞 (已更新：胶囊风格) -->
+                <div id="subject-dock" class="subject-dock">
+                    
+                    <!-- 1. 数学图标 -->
+                    <div class="dock-item math" onclick="tools.toggleSubject('math')">
+                        <i class="fas fa-square-root-alt"></i>
+                        <span>数学</span>
+                    </div>
+
+                    <!-- 数学工具面板 -->
+                    <div id="dock-panel-math" class="dock-tools-container">
+                        <div>
+                            <div class="dock-group-title">神笔马良</div>
+                            <div class="dock-grid">
+                                <button class="dock-tool-btn" onclick="wb.setShapeMode('magic-line')">
+                                    <i class="fas fa-slash"></i> 直线
+                                </button>
+                                <button class="dock-tool-btn" onclick="wb.setShapeMode('magic-circle')">
+                                    <i class="far fa-circle"></i> 圆形
+                                </button>
+                            </div>
+                        </div>                        <div>
+                            <div class="dock-group-title">几何图形</div>
+                            <div class="dock-grid">
+                                <button class="dock-tool-btn" onclick="wb.setShapeMode('rect')">
+                                    <i class="far fa-square"></i> 矩形
+                                </button>
+                                <button class="dock-tool-btn" onclick="wb.setShapeMode('triangle')">
+                                    <i class="fas fa-caret-up"></i> 三角
+                                </button>
+                                
+                                <!-- ✅ 新增：坐标系开关按钮 -->
+                                <button class="dock-tool-btn" onclick="wb.toggleGrid()" title="开启/关闭 坐标系">
+                                    <i class="fas fa-border-all"></i> 坐标系
+                                </button>
+
+                                <!-- (原有的直角三角形按钮可以移到后面或者保留) -->
+                                <button class="dock-tool-btn" onclick="wb.setShapeMode('right-triangle')">
+                                    <i class="fas fa-ruler-triangle"></i> 直角
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="dock-group-title">文字</div>
+                            <button class="dock-tool-btn" style="width:100%" onclick="wb.setShapeMode('formula')">
+                                <i class="fas fa-font"></i> 标准印刷体
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 2. 语文图标 -->
+                    <div class="dock-item chinese" onclick="tools.toggleSubject('chinese')">
+                        <i class="fas fa-book-reader"></i>
+                        <span>语文</span>
+                    </div>
+                    
+                    <!-- 语文工具面板 -->
+                    <div id="dock-panel-chinese" class="dock-tools-container">
+                        <div style="text-align:center; color:#666; padding:20px 0;">
+                            <i class="fas fa-hard-hat" style="font-size:2rem; margin-bottom:10px;"></i>
+                            <div>田字格/笔顺<br>开发中...</div>
+                        </div>
+                    </div>
+
+                    <!-- 3. 英语图标 -->
+                    <div class="dock-item english" onclick="tools.toggleSubject('english')">
+                        <i class="fas fa-font"></i>
+                        <span>英语</span>
+                    </div>
+
+                    <!-- 英语工具面板 -->
+                    <div id="dock-panel-english" class="dock-tools-container">
+                        <div style="text-align:center; color:#666; padding:20px 0;">
+                            <i class="fas fa-wrench" style="font-size:2rem; margin-bottom:10px;"></i>
+                            <div>四线三格<br>开发中...</div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div id="ai-loading-toast" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.8); padding:20px 40px; border-radius:12px; color:white; z-index:100; text-align:center; border:1px solid #d946ef; box-shadow:0 0 30px #d946ef;">
+                    <i class="fas fa-robot fa-spin" style="font-size:3rem; margin-bottom:10px; color:#d946ef;">
+                    <div id="ai-toast-text" style="font-size:1.2rem;">正在聆听...</div>
+                </i></div>
+                </div>
+            </div>        </div>
+
+        
+        <!-- 右侧 (花名册 - V1) -->
+        <div id="roster-panel">
+            <div class="header-hud">
+                <div style="font-weight:bold; font-size:1.1rem; color:var(--primary)"><i class="fas fa-users"></i> 班级看板 (Supabase)</div>
+                <div class="header-center-title">
+                <div class="wild-header-wrapper">
+                    <div class="wild-header-title">
+                        AI 多功能教学平台
+                        <span class="wild-header-tag">V3</span>
+                    </div>
+                    
+                    <div class="wild-header-author">
+                        林维康
+                    </div>
+                </div>
+            </div>
+                <div style="display:flex; gap:5px;">
+                    <button class="ctrl-btn" onclick="app.openRace()" style="width:35px; height:35px; display:inline-flex; font-size:0.9rem; background:#7c3aed; color:white;" title="成绩赛跑"><i class="fas fa-flag-checkered"></i></button>
+                    <button class="ctrl-btn" onclick="app.openAnalysis()" style="width:35px; height:35px; display:inline-flex; background: linear-gradient(135deg, #8b5cf6, #d946ef);" title="智能分析"><i class="fas fa-chart-line"></i></button>
+                    <button class="ctrl-btn" onclick="app.togglePool()" style="width:35px; height:35px; display:inline-flex;"><i class="fas fa-user-friends"></i></button>
+                    <button class="ctrl-btn" onclick="app.addGroup()" style="width:35px; height:35px; display:inline-flex;"><i class="fas fa-plus"></i></button>
+<!-- 新增：网站收藏按钮 -->
+<button class="ctrl-btn" onclick="app.openWebsites()" title="常用网站收藏" style="background:#0ea5e9; color:white; margin-left:5px;">
+    <i class="fas fa-globe"></i>
+</button>
+<button class="ctrl-btn" onclick="app.openCloudDrive()" title="云端课件库" style="background:#fbbf24; color:black; margin-left:5px;">
+    <i class="fas fa-cloud"></i>
+</button>
+                </div>
+            </div>
+            <div class="roster-split-layout">
+                <div class="all-students-area" id="poolArea" ondrop="app.drop(event, '未分组')" ondragover="event.preventDefault()">
+                    <div style="padding:10px; font-size:0.9rem; color:#666; text-align:center;">未分组学员</div>
+                    <div class="pool-content" id="poolContent" style="position:relative; min-height:200px;">
+                        <div id="pool-empty-state" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; color:#94a3b8; pointer-events:none;">
+                            <i class="fas fa-seedling" style="font-size:3rem; margin-bottom:10px; opacity:0.5;"></i>
+                            <div>暂无学生<br>请点击底部导入名单</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="groups-stage-area" id="groupStage"></div>
+            </div>
+
+            <!-- 单人模式结果层 (V1) -->
+            <div id="single-mode-result-layer">
+                <button class="q-close-btn" onclick="app.closeOverlay()" title="关闭 (不计分)"><i class="fas fa-times"></i></button>
+                <div id="single-card-container"></div>
+                <div id="single-btn-container" style="margin-top:30px; display:flex; gap:20px;">
+                    <button class="pk-judge-btn btn-win" onclick="app.judgeSingle(true)">🎉 获胜</button>
+                    <button class="pk-judge-btn btn-loss" onclick="app.judgeSingle(false)">💪 遗憾</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部控制栏 (更新版) -->
+        <div class="controls" id="main-controls">
+            <button class="ctrl-btn toggle-btn" onclick="app.toggleBar('main-controls', this)" title="收起工具栏"><i class="fas fa-chevron-down"></i></button>
+            
+            <button class="ctrl-btn" onclick="app.toggleLecture()" title="展开/收起教学白板">
+                <i class="fas fa-chalkboard-teacher"></i>
+            </button>            <button class="ctrl-btn" onclick="el('usbLoader').click()" title="📂 读取本地课件(USB)" style="background:var(--gold); color:black;">
+                <i class="fas fa-folder-open"></i>
+            </button>
+            <!-- 新增：网站收藏按钮 -->
+            <button class="ctrl-btn" onclick="app.openWebsites()" title="常用网站收藏" style="background:#0ea5e9; color:white; margin-left:5px;">
+                <i class="fas fa-globe"></i>
+            </button>
+            <button class="ctrl-btn" onclick="app.openCloudDrive()" title="云端课件库" style="background:#fbbf24; color:black; margin-left:5px;">
+                <i class="fas fa-cloud"></i>
+            </button>
+            
+            <div style="width:1px; background:#555; height:20px; align-self:center;"></div>
+            
+            <button class="ctrl-btn primary" id="btn-roll" onclick="app.startRoll('single')" title="随机点名"><i class="fas fa-dice-d20"></i></button>
+            <button class="ctrl-btn pk" id="btn-pk" onclick="app.startRoll('pk')" title="PK对决"><i class="fas fa-khanda"></i></button>
+            
+            <button class="ctrl-btn" onclick="app.resetStatus()" title="重置状态"><i class="fas fa-undo"></i></button>
+            
+            <button class="ctrl-btn" onclick="el('quizFile').click()" title="导入题库" style="color:#4ade80;"><i class="fas fa-file-import"></i></button>
+
+            <div style="width:1px; background:#555; height:20px; align-self:center;"></div>
+            
+            <button class="ctrl-btn" onclick="app.openImport()" title="导入名单"><i class="fas fa-user-plus"></i></button>
+            <button class="ctrl-btn" onclick="app.switchClass()" title="切换班级" style="background:#f59e0b; color:white;">
+                <i class="fas fa-exchange-alt"></i>
+            </button>
+            <button class="ctrl-btn" onclick="app.logout()" title="退出登录" style="background:#ef4444;"><i class="fas fa-sign-out-alt"></i></button>
+        </div>
+    </div>
+
+<!-- 新增：网站收藏 Modal -->
+<div id="website-modal" class="modal">
+    <div class="modal-box" style="width: 600px; background: #1a1a1a; border: 1px solid #444;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #333; padding-bottom:15px;">
+            <h3 style="margin:0; font-size:1.5rem; color:#0ea5e9;"><i class="fas fa-globe"></i> 常用网站云收藏</h3>
+            <button class="close-modal" onclick="el('website-modal').style.display='none'" style="position:static;"><i class="fas fa-times"></i></button>
+        </div>
+        
+        <div class="web-input-group">
+            <input id="web-input-title" class="web-input" placeholder="网站名称 (例如: B站、百度)">
+            <input id="web-input-url" class="web-input" placeholder="网址 (例如: bilibili.com)">
+            <button class="web-add-btn" onclick="app.addWebsite()"><i class="fas fa-plus"></i> 添加</button>
+        </div>
+
+        <div id="web-list" class="web-list-container">
+            <!-- 列表将由 JS 动态生成 -->
+            <div style="text-align:center; color:#666; padding:20px;">正在从云端加载...</div>
+        </div>
+    </div>
+</div>
+
+<div id="courseware-modal" class="modal">
+    <div class="modal-box" style="width: 980px; background: #0f0f0f; border: 1px solid #333;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #222; padding-bottom:12px;">
+            <h3 style="margin:0; font-size:1.4rem; color:var(--gold);"><i class="fas fa-cloud"></i> 云端课件库</h3>
+            <button class="close-modal" onclick="el('courseware-modal').style.display='none'" style="position:static;"><i class="fas fa-times"></i></button>
+        </div>
+
+        <div class="courseware-toolbar">
+            <button class="upload-btn-ui" onclick="app.triggerCoursewareUploader()" style="width:auto; justify-content:center;">
+                <i class="fas fa-upload"></i> 上传 PDF / MP4
+            </button>
+            <div id="courseware-status" style="color:#94a3b8; font-size:0.9rem;"></div>
+            <button class="upload-btn-ui" onclick="app.loadCoursewareList()" style="width:auto; justify-content:center; margin-left:auto;">
+                <i class="fas fa-sync"></i> 刷新
+            </button>
+        </div>
+
+        <div class="courseware-layout">
+            <div class="courseware-left">
+                <div id="courseware-list" class="courseware-list">
+                    <div style="text-align:center; color:#666; padding:20px;">正在从云端加载...</div>
+                </div>
+            </div>
+            <div class="courseware-right">
+                <div id="courseware-preview" class="courseware-preview">
+                    <div style="text-align:center; color:#666; padding:40px;">
+                        <i class="fas fa-photo-video" style="font-size:3rem; opacity:0.25;"></i>
+                        <div style="margin-top:10px;">请选择一个课件进行播放</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+    <div id="import-modal" class="modal">
+        <div class="modal-box" style="width:600px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h3>📂 导入 <span id="import-class-name" style="color:var(--primary)"></span> 学生名单</h3>
+                <button class="close-modal" onclick="el('import-modal').style.display='none'"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div style="background:#222; padding:15px; border-radius:8px; margin-bottom:15px; border:1px dashed #555;">
+                <div style="font-size:0.9rem; color:#aaa; margin-bottom:10px;">方法一：直接读取 TXT 文件 (推荐)</div>
+                <button class="upload-btn-ui" onclick="el('txt-roster-loader').click()" style="width:100%; justify-content:center;">
+                    <i class="fas fa-file-alt"></i> 选择本地 TXT 名单文件
+                </button>
+                <input type="file" id="txt-roster-loader" accept=".txt" style="display:none" onchange="app.handleTxtImport(this)">
+                <div style="font-size:0.8rem; color:#666; margin-top:5px;">* TXT格式要求：每行一个学生，例如“张三 男”或仅“张三”</div>
+            </div>
+
+            <div style="border-top:1px solid #333; padding-top:15px;">
+                <div style="font-size:0.9rem; color:#aaa; margin-bottom:10px;">方法二：手动粘贴文本</div>
+                <textarea id="import-text" style="width:100%; height:150px; background:#111; color:white; border:1px solid #333; padding:10px;" placeholder="张三 男&#10;李四 女"></textarea>
+                <div style="margin-top:10px; text-align:right;">
+                    <button class="login-btn" style="width:auto; padding:8px 25px;" onclick="app.parseImport()">保存并上传云端</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PK 覆盖层 -->
+    <div id="winner-overlay" style="display:none;">
+        <button class="q-close-btn" onclick="app.closeOverlay()" title="关闭 (不计分)">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="pk-layout-wrapper">
+            <div class="pk-left-panel" id="pk-left-panel">
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                    <div id="pk-card-1" class="pk-card-large">
+                        <div class="effect-layer"></div>
+                        <div class="content-layer">
+                            <div class="avatar-wrapper">
+                                <img id="pk-img-1" class="avatar-img" src="">
+                                <div id="pk-pendant-1" class="rank-pendant fa"></div>
+                            </div>
+                            <div id="pk-name-1" class="pk-name">选手A</div>
+                            <div id="pk-sign-1" class="pk-sign">Sign</div>
+                            <div class="win-loss-bar">
+                                <span class="win-tag">积分 <span id="pk-win-1">0</span></span>
+                            </div>
+                            <div id="pk-rank-name-1" class="pk-rank-text"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="vs-column">
+                    <div class="vs-text">V</div>
+                    <div class="vs-text">S</div>
+                </div>
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                    <div id="pk-card-2" class="pk-card-large">
+                        <div class="effect-layer"></div>
+                        <div class="content-layer">
+                            <div class="avatar-wrapper">
+                                <img id="pk-img-2" class="avatar-img" src="">
+                                <div id="pk-pendant-2" class="rank-pendant fa"></div>
+                            </div>
+                            <div id="pk-name-2" class="pk-name">选手B</div>
+                            <div id="pk-sign-2" class="pk-sign">Sign</div>
+                            <div class="win-loss-bar">
+                                <span class="win-tag">积分 <span id="pk-win-2">0</span></span>
+                            </div>
+                            <div id="pk-rank-name-2" class="pk-rank-text"></div>
+                        </div>
+                    </div>
+                </div>
+                <div style="position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); display: flex; gap: 100px; z-index: 100;">
+                    <button class="pk-judge-btn btn-win" onclick="app.judgePK('left')">
+                        <i class="fas fa-trophy"></i> 左侧获胜
+                    </button>
+                    <button class="pk-judge-btn btn-win" onclick="app.judgePK('right')">
+                        右侧获胜 <i class="fas fa-trophy"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="pk-right-panel" id="pk-right-panel">
+                <div class="question-stage" id="q-stage-box">
+                    <select id="timer-select" onchange="app.resetTimer()">
+                        <option value="10">10s</option>
+                        <option value="30" selected>30s</option>
+                        <option value="60">60s</option>
+                        <option value="90">90s</option>
+                        <option value="300">300s</option>
+                    </select>
+                    <div class="q-timer" id="timer-display">30</div>
+                    <div class="q-zoom-controls">
+                        <button class="zoom-btn" onclick="app.zoomQ(0.2)" title="放大">+</button>
+                        <button class="zoom-btn" onclick="app.resetZoomQ()" title="复位">↺</button>
+                        <button class="zoom-btn" onclick="app.zoomQ(-0.2)" title="缩小">-</button>
+                    </div>
+                    <div id="question-wrapper">
+                        <div id="question-content"></div>
+                    </div>
+                    <div id="answer-content"></div>
+                    <button onclick="document.getElementById('answer-content').style.display='block'" class="show-answer-btn">答案</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 个人中心 (V1 风格 + V2 逻辑) -->
+    <div id="profile-modal" class="modal">
+        <div class="modal-box" id="profile-box">
+            <button class="close-modal" onclick="app.closeProfile()"><i class="fas fa-times"></i></button>
+
+            <div id="vip-profile" class="vip-profile">
+                <div class="vip-header">
+                    <div class="vip-header-text">
+                        学生个人信息卡片
+                    </div>
+                    <button class="vip-glass-btn" type="button">编辑资料</button>
+                </div>
+
+                <div class="vip-body">
+                    <div class="vip-main">
+                        <div class="vip-glass-card vip-student-info-card">
+                            <div class="vip-card-head">
+                                <div class="vip-card-title">学生个人信息卡片</div>
+                                <div id="vip-rank-top" class="vip-rank-top">称号</div>
+                            </div>
+
+                            <div class="vip-student-layout">
+                                <div class="vip-mini-card-slot">
+                                    <div id="vip-mini-card" class="card"></div>
+                                </div>
+                                <div class="vip-id-block">
+                                    <div id="vip-name" class="vip-id-name">姓名</div>
+                                    <div class="vip-id-row">
+                                        <div id="vip-class" class="vip-id-class">班级</div>
+                                        <div class="vip-dot">·</div>
+                                        <div class="vip-id-points"><span id="vip-points" class="vip-points">0</span><span class="vip-sub"> 积分</span></div>
+                                    </div>
+                                    <div id="vip-sign-top" class="vip-sign-top">—</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="vip-legacy-panel">
+                            <div class="vip-legacy-stats">
+                                <div class="vip-legacy-stat">
+                                    <div class="vip-legacy-k">积分</div>
+                                    <div class="vip-legacy-pill">
+                                        <div id="vip-legacy-wins" class="vip-legacy-v">0</div>
+                                    </div>
+                                </div>
+                                <div class="vip-legacy-sign">
+                                    <div class="vip-legacy-k">个性签名（实时预览）</div>
+                                    <input id="vip-sign-input" class="vip-legacy-input" maxlength="15" oninput="app.updateSignPreview(this.value)">
+                                </div>
+                            </div>
+
+                            <div class="vip-legacy-assets">
+                                <div class="vip-legacy-asset">
+                                    <div class="vip-legacy-asset-head">
+                                        <div class="vip-legacy-k">更换头像</div>
+                                        <div class="vip-legacy-actions">
+                                            <span class="vip-legacy-link" onclick="app.refreshVipAvatars()">换一批(云端)</span>
+                                            <span class="vip-legacy-sep">|</span>
+                                            <span class="vip-legacy-link" onclick="el('uploadAvatar').click()">上传(本地)</span>
+                                        </div>
+                                    </div>
+                                    <div class="vip-legacy-grid" id="vip-avatar-grid"></div>
+                                </div>
+                                <div class="vip-legacy-asset">
+                                    <div class="vip-legacy-asset-head">
+                                        <div class="vip-legacy-k">主页背景（鲜艳/渐变）</div>
+                                    </div>
+                                    <div class="vip-legacy-bggrid" id="vip-bg-grid"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="vip-side">
+                        <div class="vip-glass-card vip-pet-module">
+                            <div class="vip-pet-module-left">
+                                <div class="vip-pet-module-title">萌宠展示 😊</div>
+                                <div class="vip-petmeta-grid">
+                                    <div class="vip-petmeta-line"><span class="vip-petmeta-k">宠物类型：</span><select id="vip-pet-select" class="vip-pet-select"></select></div>
+                                    <div class="vip-petmeta-line"><span class="vip-petmeta-k">时期：</span><span id="vip-pet-period" class="vip-petmeta-v">—</span></div>
+                                    <div class="vip-petmeta-line"><span class="vip-petmeta-k">名称：</span><span id="vip-pet-name" class="vip-petmeta-v">—</span></div>
+                                </div>
+                            </div>
+                            <div class="vip-pet-module-right">
+                                <div class="vip-pet-gif-box">
+                                    <img id="vip-pet-gif" class="vip-pet-gif" src="/pets/恐龙蛋1.gif" alt="pet">
+                                </div>
+                                <div class="vip-pet-exp">
+                                    <div class="vip-exp-meta">
+                                        <div class="vip-card-title" style="margin:0;">经验值</div>
+                                        <div id="vip-exp-text" class="vip-exp-text">0 / 5</div>
+                                    </div>
+                                    <div class="vip-exp-bar">
+                                        <div id="vip-exp-fill" class="vip-exp-fill" style="width:0%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="profile-top-section">
+                <div class="profile-card-container">
+                    <div id="profile-preview-card" class="card"></div>
+                </div>
+                <div class="profile-pet-panel">
+                    <div class="profile-pet-left">
+                        <div class="profile-pet-title">萌宠展示 😊</div>
+                        <div class="profile-pet-grid">
+                            <div class="profile-pet-field">
+                                <div class="profile-pet-k">宠物类型：</div>
+                                <div id="p-pet-type" class="profile-pet-v"><select id="p-pet-select" class="profile-pet-select"></select></div>
+                            </div>
+                            <div class="profile-pet-field">
+                                <div class="profile-pet-k">时期：</div>
+                                <div id="p-pet-period" class="profile-pet-v">—</div>
+                            </div>
+                            <div class="profile-pet-field">
+                                <div class="profile-pet-k-row">
+                                    <div class="profile-pet-k">名称：</div>
+                                    <button class="profile-pet-edit" type="button" onclick="app.beginEditProfilePetName()" aria-label="编辑萌宠名称">
+                                        <i class="fas fa-pen"></i>
+                                    </button>
+                                </div>
+                                <div id="p-pet-name" class="profile-pet-v">—</div>
+                                <input id="p-pet-name-input" class="profile-pet-name-input" maxlength="5" style="display:none;" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="profile-pet-right">
+                        <div class="profile-pet-gifbox">
+                            <img id="p-pet-gif" class="profile-pet-gif" src="/pets/恐龙蛋1.gif" alt="pet">
+                        </div>
+                        <div class="profile-pet-exp">
+                            <div class="profile-pet-exp-row">
+                                <div class="profile-pet-exp-label">经验值</div>
+                                <div id="p-exp-text" class="profile-pet-exp-text">0 / 5</div>
+                            </div>
+                            <div class="profile-pet-exp-bar">
+                                <div id="p-exp-fill" class="profile-pet-exp-fill" style="width:0%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="profile-controls futuristic-controls">
+                <div class="profile-feature-wrap">
+                    <div class="profile-feature-card traits-card">
+                        <div class="profile-feature-head">
+                            <div id="traits-title" class="profile-feature-title">学校表现雷达图</div>
+                            <button id="traits-generate" class="traits-generate" type="button" onclick="app.generateTraitsAnalysis()">生成解析</button>
+                        </div>
+                        <div id="traits-radar" class="traits-radar"></div>
+                        <div id="traits-ai" class="traits-ai"></div>
+                    </div>
+                    <div class="profile-feature-card">
+                        <div id="behavior-title" class="profile-feature-title">积分评价</div>
+                        <div class="behavior-grid">
+                            <!-- 1. 认真 (Serious) -->
+                            <div class="behavior-item behavior-indigo">
+                                <div class="behavior-pill">
+                                    <svg class="behavior-ico" viewBox="0 0 24 24" fill="none">
+                                        <path d="M4 19a2 2 0 0 1 2-2h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                        <path d="M6 3h14v16H6a2 2 0 0 0-2 2V5a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                                        <path d="M8 7h8M8 10h8M8 13h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                    </svg>
+                                    <span>认真</span>
+                                </div>
+                                <div class="behavior-ctrl">
+                                    <button class="behavior-btn behavior-btn-minus" type="button" onclick="app.adjBehavior('serious', -1)" aria-label="认真 -1">-</button>
+                                    <button class="behavior-edit" type="button" onclick="app.promptBehavior('serious')" aria-label="编辑认真">
+                                        <span id="behavior-serious" class="behavior-edit-val">0</span>
+                                    </button>
+                                    <button class="behavior-btn behavior-btn-plus" type="button" onclick="app.adjBehavior('serious', 1)" aria-label="认真 +1">+</button>
+                                </div>
+                            </div>
+                            
+                            <!-- 2. 勤奋 (Diligent) -->
+                            <div class="behavior-item behavior-amber">
+                                <div class="behavior-pill">
+                                    <svg class="behavior-ico" viewBox="0 0 24 24" fill="none">
+                                        <path d="M13 2L3 14h7l-1 8 12-14h-7l-1-6z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                                    </svg>
+                                    <span>勤奋</span>
+                                </div>
+                                <div class="behavior-ctrl">
+                                    <button class="behavior-btn behavior-btn-minus" type="button" onclick="app.adjBehavior('diligent', -1)" aria-label="勤奋 -1">-</button>
+                                    <button class="behavior-edit" type="button" onclick="app.promptBehavior('diligent')" aria-label="编辑勤奋">
+                                        <span id="behavior-diligent" class="behavior-edit-val">0</span>
+                                    </button>
+                                    <button class="behavior-btn behavior-btn-plus" type="button" onclick="app.adjBehavior('diligent', 1)" aria-label="勤奋 +1">+</button>
+                                </div>
+                            </div>
+
+                            <!-- 3. 聪明 (Smart) -->
+                            <div class="behavior-item behavior-yellow">
+                                <div class="behavior-pill">
+                                    <svg class="behavior-ico" viewBox="0 0 24 24" fill="none">
+                                        <path d="M9 18h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                        <path d="M10 22h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                        <path d="M8 14c-1.2-1-2-2.5-2-4.5A6 6 0 0 1 12 3a6 6 0 0 1 6 6.5c0 2-0.8 3.5-2 4.5-0.8 0.7-1 1.3-1 2H9c0-0.7-0.2-1.3-1-2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                                    </svg>
+                                    <span>聪明</span>
+                                </div>
+                                <div class="behavior-ctrl">
+                                    <button class="behavior-btn behavior-btn-minus" type="button" onclick="app.adjBehavior('smart', -1)" aria-label="聪明 -1">-</button>
+                                    <button class="behavior-edit" type="button" onclick="app.promptBehavior('smart')" aria-label="编辑聪明">
+                                        <span id="behavior-smart" class="behavior-edit-val">0</span>
+                                    </button>
+                                    <button class="behavior-btn behavior-btn-plus" type="button" onclick="app.adjBehavior('smart', 1)" aria-label="聪明 +1">+</button>
+                                </div>
+                            </div>
+
+                            <!-- 4. 乐于助人 (Helpful) -->
+                            <div class="behavior-item behavior-rose">
+                                <div class="behavior-pill">
+                                    <svg class="behavior-ico" viewBox="0 0 24 24" fill="none">
+                                        <path d="M12 21s-8-4.5-8-10a4.5 4.5 0 0 1 8-2 4.5 4.5 0 0 1 8 2c0 5.5-8 10-8 10z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                                    </svg>
+                                    <span>善良</span>
+                                </div>
+                                <div class="behavior-ctrl">
+                                    <button class="behavior-btn behavior-btn-minus" type="button" onclick="app.adjBehavior('helpful', -1)" aria-label="善良 -1">-</button>
+                                    <button class="behavior-edit" type="button" onclick="app.promptBehavior('helpful')" aria-label="编辑善良">
+                                        <span id="behavior-helpful" class="behavior-edit-val">0</span>
+                                    </button>
+                                    <button class="behavior-btn behavior-btn-plus" type="button" onclick="app.adjBehavior('helpful', 1)" aria-label="善良 +1">+</button>
+                                </div>
+                            </div>
+
+                            <!-- 5. 团结 (United) -->
+                            <div class="behavior-item behavior-cyan">
+                                <div class="behavior-pill">
+                                    <svg class="behavior-ico" viewBox="0 0 24 24" fill="none">
+                                        <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                        <path d="M7 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                                        <path d="M21 21v-2a3.5 3.5 0 0 0-3-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                        <path d="M17 3.5a3.5 3.5 0 0 1 0 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                    </svg>
+                                    <span>团结</span>
+                                </div>
+                                <div class="behavior-ctrl">
+                                    <button class="behavior-btn behavior-btn-minus" type="button" onclick="app.adjBehavior('united', -1)" aria-label="团结 -1">-</button>
+                                    <button class="behavior-edit" type="button" onclick="app.promptBehavior('united')" aria-label="编辑团结">
+                                        <span id="behavior-united" class="behavior-edit-val">0</span>
+                                    </button>
+                                    <button class="behavior-btn behavior-btn-plus" type="button" onclick="app.adjBehavior('united', 1)" aria-label="团结 +1">+</button>
+                                </div>
+                            </div>
+
+                            <!-- 6. 礼貌 (Polite) -->
+                            <div class="behavior-item behavior-emerald">
+                                <div class="behavior-pill">
+                                    <svg class="behavior-ico" viewBox="0 0 24 24" fill="none">
+                                        <path d="M18 8a6 6 0 0 1-12 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                        <path d="M8 14s1 2 4 2 4-2 4-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                        <path d="M9 10h.01M15 10h.01" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+                                        <path d="M12 22c4.5 0 9-3.5 9-10S16.5 2 12 2 3 5.5 3 12s4.5 10 9 10z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                                    </svg>
+                                    <span>礼貌</span>
+                                </div>
+                                <div class="behavior-ctrl">
+                                    <button class="behavior-btn behavior-btn-minus" type="button" onclick="app.adjBehavior('polite', -1)" aria-label="礼貌 -1">-</button>
+                                    <button class="behavior-edit" type="button" onclick="app.promptBehavior('polite')" aria-label="编辑礼貌">
+                                        <span id="behavior-polite" class="behavior-edit-val">0</span>
+                                    </button>
+                                    <button class="behavior-btn behavior-btn-plus" type="button" onclick="app.adjBehavior('polite', 1)" aria-label="礼貌 +1">+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button class="save-btn-full" onclick="app.saveProfile()">保存修改并同步到云端</button>
+            </div>
+
+            <div id="avatar-dialog" class="avatar-dialog" style="display:none;">
+                <div class="avatar-dialog-mask" onclick="app.closeAvatarDialog()"></div>
+                <div class="avatar-dialog-card" role="dialog" aria-modal="true" aria-label="更换头像">
+                    <div class="avatar-dialog-head">
+                        <div class="avatar-dialog-title">更换头像</div>
+                        <button class="avatar-dialog-close" type="button" onclick="app.closeAvatarDialog()" aria-label="关闭">×</button>
+                    </div>
+                    <div class="avatar-dialog-actions">
+                        <span class="avatar-dialog-link" onclick="app.refreshAvatars()">换一批(云端)</span>
+                        <span class="avatar-dialog-sep">|</span>
+                        <span id="avatar-upload-link" class="avatar-dialog-link" onclick="el('uploadAvatar').click()">上传(本地)</span>
+                    </div>
+                    <div id="avatar-grid" class="avatar-dialog-grid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="student-profile-modal" class="modal">
+        <div class="modal-box" style="width:min(1200px, 96vw); height:min(92vh, 920px); padding:0; overflow:hidden;">
+            <button class="close-modal" onclick="app.closeStudentProfile()" style="z-index:10;"><i class="fas fa-times"></i></button>
+            <iframe id="student-profile-iframe" src="about:blank" style="width:100%; height:100%; border:0;"></iframe>
+        </div>
+    </div>
+
+    <!-- 成绩赛跑 Modal (还原 V1) -->
+    <div id="race-modal" class="modal">
+        <div class="modal-box">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h2 style="margin:0; color:var(--primary); font-family:'Zcool KuaiLe'; font-size: 2rem;"><i class="fas fa-flag-checkered"></i> 成绩赛跑</h2>
+                <button onclick="el('race-modal').style.display='none'" style="background:none; border:none; color:#aaa; cursor:pointer; font-size:1.5rem;"><i class="fas fa-times"></i></button>
+            </div>
+            <div style="display:flex; gap:30px; margin-top:20px; flex:1; overflow:hidden;">
+                <div style="width:250px; display:flex; flex-direction:column; gap:20px; border-right:1px solid #333; padding-right:20px;">
+                    <div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                            <label style="color:#aaa; font-size:1rem; font-weight:bold;">粘贴成绩 (姓名 分数)</label>
+                            <button class="sub-btn" onclick="el('raceTxtInput').click" style="padding:3px 8px; font-size:0.8rem; background:#444; color:white; border:none; border-radius:4px; cursor:pointer;"><i class="fas fa-file-alt"></i> 导入TXT</button>
+                            <input type="file" id="raceTxtInput" accept=".txt" style="display:none" onchange="app.handleRaceImport(this)">
+                        </div>
+                        <div style="color:#666; font-size:0.8rem; margin-bottom:5px;">同分不能在同道，每道限3人</div>
+                        <textarea id="race-input" oninput="app.saveRaceData()" style="width:100%; height:400px; background:#111; border:1px solid #333; color:white; padding:15px; border-radius:12px; box-sizing:border-box; font-size:1rem; line-height:1.5;" placeholder="张三 98&#10;李四 95&#10;王五 100"></textarea>
+                    </div>
+                    <div>
+                        <button onclick="app.initRace()" class="save-btn-full" style="background:#555;">加载/分配跑道</button>
+                        <button onclick="app.runRace()" class="save-btn-full" style="margin-top:10px; background: #3b82f6;">开始赛跑</button>
+                    </div>
+                </div>
+                <div style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+                     <div style="text-align:right; color:#777; font-size:0.8rem; margin-bottom:5px;">
+                         1分 = 15px | 10条跑道 | 自动防重叠
+                     </div>
+                     <div id="race-view" class="race-scroll-view">
+                         <div id="race-board" class="race-track-board"></div>
+                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 智能分析 Modal (还原 V1) -->
+    <div id="analysis-modal" class="modal">
+        <div class="modal-box">
+            <div class="analysis-header">
+                <h2><i class="fas fa-chart-line"></i> 学生成绩分析报告</h2>
+                <div>
+                    <button class="upload-btn-ui" onclick="app.checkAnalysisData()" style="margin-right:10px; background:#eab308; color:#000;">🛠️ 数据自检</button>
+                    <button class="upload-btn-ui" onclick="app.toggleAnalysisMode('single')" style="margin-right:10px; background:#444;">单次分析</button>
+                    <button class="upload-btn-ui btn-trend" onclick="app.toggleAnalysisMode('trend')">📈 趋势对比</button>
+                    <button onclick="el('analysis-modal').style.display='none'" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer; margin-left:20px;"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+            
+            <div class="analysis-content">
+                <div id="single-report-section">
+                    <div class="upload-section" style="grid-column: 1 / -1;">
+                        <button class="upload-btn-ui" onclick="el('analysisFile').click()"><i class="fas fa-file-excel"></i> 选择 Excel 文件 (.xlsx)</button>
+                        <input type="file" id="analysisFile" accept=".xlsx" style="display:none" onchange="app.handleAnalysisUpload(this)">
+                        <span style="color:#aaa; font-size:0.9rem;">请上传包含“姓名”及各科成绩的表格</span>
+                    </div>
+
+                    <!-- 左侧：图表区 -->
+                    <div class="charts-column">
+                        <div class="chart-container" style="min-height: 300px;">
+                            <div class="chart-title">各科平均分横向对比</div>
+                            <div id="avgBarChart" style="flex:1;"></div>
+                        </div>
+                        
+                        <div class="advice-box">
+                            <div style="font-weight:bold; margin-bottom:10px; color:#60a5fa;"><i class="fas fa-robot"></i> AI 分析建议:</div>
+                            <div id="adviceText">暂无数据，请先上传 Excel 文件。</div>
+                        </div>
+
+                        <div class="chart-container">
+                            <div class="chart-title">各科成绩分布 (Bar)</div>
+                            <div id="barChart" style="flex:1;"></div>
+                        </div>
+                        
+                        <!-- 饼图 -->
+                        <div class="chart-container with-sidebar">
+                            <div class="chart-sidebar" id="pie-subject-switch"></div>
+                            <div style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+                                <div class="chart-title">分数段占比 (Pie)</div>
+                                <div id="pieChart" style="flex:1;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右侧：全高排行榜 -->
+                    <div class="analysis-sidebar">
+                        <div class="rank-list-box">
+                            <div class="chart-title" style="color:#fbbf24;">
+                                <span>🏆 班级排行榜</span>
+                                <div id="rank-subject-switch" class="sub-switch-group"></div>
+                            </div>
+                            <div class="rank-scroll-area">
+                                <div id="rankList"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="trend-section">
+                    <div class="upload-section" style="border-color: #d946ef;">
+                        <button class="upload-btn-ui btn-trend" onclick="el('trendFiles').click()"><i class="fas fa-layer-group"></i> 选择多个 Excel 文件</button>
+                        <input type="file" id="trendFiles" accept=".xlsx" multiple style="display:none" onchange="app.handleTrendUpload(this)">
+                        <span style="color:#aaa; font-size:0.9rem;">按住 Ctrl/Cmd 可多选文件</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 20px; height: 100;">
+                        <div class="chart-container" id="trend-c1" style="flex:1;">
+                            <div class="chart-title">各科平均分趋势 (Subject Trend)</div>
+                            <div id="trendChart" style="width:100%; height:100%;"></div>
+                        </div>
+                        <div class="chart-container" id="trend-c2" style="flex:1;">
+                            <div class="chart-title">各分数段人数变化 (Distribution Trend)</div>
+                            <div id="trendDistChart" style="width:100%; height:100%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 云端备课 Modal (新增) -->
+    <div id="course-admin-modal" class="modal">
+        <div class="modal-box" style="width:800px; height:80vh; display:flex; flex-direction:column;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                <h3>📂 云端备课中心</h3>
+                <button class="close-modal" onclick="el('course-admin-modal').style.display='none'"><i class="fas fa-times"></i></button>
+            </div>
+            <div style="display:flex; flex:1; gap:20px; overflow:hidden;">
+                <div style="width:250px; border-right:1px solid #333; display:flex; flex-direction:column;">
+                    <button class="sub-btn" onclick="app.createNewLesson()" style="margin-bottom:10px;">+ 新建课程</button>
+                    <div id="admin-lesson-list" style="flex:1; overflow-y:auto"></div>
+                </div>
+                <div style="flex:1; display:flex; flex-direction:column;">
+                    <div id="admin-step-editor" style="display:none; flex-direction:column; height:100%">
+                        <h4 id="editor-title" style="margin:0 0 10px 0; color:var(--primary);">正在编辑: ...</h4>
+                        <div id="admin-step-list" style="flex:1; overflow-y:auto; background:#111; padding:10px; border:1px solid #333; margin-bottom:10px;"></div>
+                        
+                        <div style="background:#222; padding:10px; border-radius:8px;">
+                            <span style="font-size:0.9rem; color:#aaa;">添加环节:</span>
+                            <div style="display:flex; gap:5px; margin-top:5px;">
+                                <button class="sub-btn" onclick="app.addStep('video_bilibili')">📺 B站视频</button>
+                                <button class="sub-btn" onclick="app.addStep('image')">🖼️ 图片</button>
+                                <button class="sub-btn" onclick="app.addStep('html_game')">🎮 网页游戏</button>
+                                </div>
+                        </div>
+                    </div>
+                    <div id="admin-empty-state" style="margin:auto; color:#666;">请在左侧选择或新建课程</div>
+                </div>
+            </div>
+        </div>
+    </div>
+<!-- ============================================ -->
+    <!-- 缺失的修复代码：创建班级滚轮 Modal (V3.8) -->
+    <!-- ============================================ -->
+    <div id="roller-modal" class="modal" style="display:none;">
+        <div class="roller-modal-box">
+            <div class="roller-header">
+                <div style="font-family:'Russo One'; font-size:1.8rem; color:#333; margin-bottom:5px;">
+                    CREATE NEW CLASS
+                </div>
+                <div style="font-size:0.9rem; color:#94a3b8; font-weight:bold;">
+                    滑动滚轮选择年级与班级
+                </div>
+            </div>
+            
+            <div class="roller-stage">
+                <div class="roller-highlight-bar"></div>
+                
+                <!-- 年级滚轮 -->
+                <div id="roller-grade" class="roller-column">
+                    <!-- JS 会在这里生成年级选项 -->
+                </div>
+                
+                <div style="font-size:2rem; font-weight:900; color:#cbd5e1; z-index:10;">-</div>
+                
+                <!-- 班级滚轮 -->
+                <div id="roller-class" class="roller-column">
+                    <!-- JS 会在这里生成班级选项 -->
+                </div>
+            </div>
+            
+            <div class="roller-footer">
+                <button class="btn-wild-cancel" onclick="el('roller-modal').style.display='none'">
+                    取消 (CANCEL)
+                </button>
+                <button class="btn-wild-confirm" onclick="app.confirmRollerCreate()">
+                    确认创建 <span id="roller-preview-text" style="font-size:0.9rem; opacity:0.8;">(...)</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- 隐藏的输入框 -->
+    <input type="file" id="uploadAvatar" accept="image/*" style="display:none" onchange="app.handleUploadAvatar(this)">
+    <input type="file" id="usbLoader" webkitdirectory directory multiple style="display:none" onchange="app.loadUsbLesson(this)">
+    <input type="file" id="genericFileLoader" style="display:none" multiple accept=".docx,.doc,.pdf,.xlsx,.xls,.mp4,.webm,.jpg,.jpeg,.png,.gif,.html,.htm,.pptx" onchange="app.handleGenericUpload('practice', event.target.files)">
+    <input type="file" id="quizFile" accept=".docx,.txt,.pdf" style="display:none" onchange="app.loadQuiz(this)">
+    <input type="file" id="coursewareUploader" style="display:none" multiple accept=".pdf,.mp4,application/pdf,video/mp4" onchange="app.handleCoursewareUpload(this)">
+    
+</body>
+</html>

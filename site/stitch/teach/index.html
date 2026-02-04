@@ -1,0 +1,127 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>AI 多功能教学平台</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&family=Inter:wght@400;500;600&family=Fredoka:wght@400;600&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@700;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,container-queries"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        edu: {
+                            blue: "#2f80ed",
+                            electric: "#0066FF",
+                            orange: "#FF9F1C",
+                            light: "#F3F5F9",
+                            glass: "rgba(255, 255, 255, 0.65)",
+                            glassBorder: "rgba(255, 255, 255, 0.8)"
+                        }
+                    },
+                    fontFamily: {
+                        display: ["Noto Sans SC", "Fredoka", "Quicksand", "sans-serif"],
+                        serif: ["Noto Serif SC", "serif"],
+                        body: ["Noto Sans SC", "Inter", "sans-serif"],
+                    },
+                    boxShadow: {
+                        'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
+                        'glass-hover': '0 12px 40px 0 rgba(0, 102, 255, 0.15)',
+                        'inner-light': 'inset 0 2px 4px 0 rgba(255, 255, 255, 0.9)',
+                        '3d': '0 4px 0px 0px rgba(0,0,0,0.1)'
+                    }
+                },
+            },
+        };
+    </script>
+    <style type="text/tailwindcss">
+        @layer base {
+            body {
+                @apply bg-[#F3F5F9] min-h-screen font-body text-slate-600;
+            }
+        }
+        
+        .glass-block {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.4));
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 
+                0 10px 20px -5px rgba(0, 102, 255, 0.1),
+                inset 0 2px 5px rgba(255,255,255,1);
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .crystal-spin {
+            animation: spin-slow 20s linear infinite;
+            transform-origin: center;
+        }
+        .crystal-float {
+            animation: float 6s ease-in-out infinite;
+        }
+        @keyframes spin-slow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        .core-shape {
+             filter: drop-shadow(0 0 20px rgba(0, 102, 255, 0.4));
+        }
+        .core-facet-primary {
+            fill: rgba(255, 255, 255, 0.15);
+            stroke: rgba(255, 255, 255, 0.8);
+            stroke-width: 0.5px;
+            backdrop-filter: blur(4px);
+        }
+        .core-facet-secondary {
+            fill: url(#iridescent-grad);
+            fill-opacity: 0.3;
+            stroke: rgba(255, 255, 255, 0.5);
+            stroke-width: 0.3px;
+        }
+        .core-filament {
+            fill: none;
+            stroke: url(#glow-grad);
+            stroke-width: 1.5px;
+            stroke-linecap: round;
+            filter: blur(1px);
+            opacity: 0.8;
+            animation: pulse-filament 3s infinite alternate;
+        }
+        @keyframes pulse-filament {
+            0% { stroke-opacity: 0.5; stroke-width: 1px; }
+            100% { stroke-opacity: 1; stroke-width: 2.5px; }
+        }
+
+        .text-glow-neon {
+            text-shadow: 
+                0 0 10px rgba(0, 102, 255, 0.3),
+                0 0 20px rgba(0, 102, 255, 0.2),
+                0 0 30px rgba(0, 102, 255, 0.1);
+        }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "@google/genai": "https://esm.sh/@google/genai@^1.39.0",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.13.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+    <div id="root"></div>
+<script type="module" crossorigin src="/stitch/teach/zhipu-wire.js"></script>
+<script type="module" crossorigin src="/stitch/teach/assets/index.js"></script>
+</body>
+</html>

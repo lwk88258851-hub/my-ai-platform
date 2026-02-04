@@ -1,27 +1,21 @@
-# my-ai-platform (V3)
+# my-ai-platform（线上静态镜像）
 
-这是一个基于 Vite + 原生 JavaScript 的工程化项目，用来承载原来的单文件页面 `v2 .html`（已升级为 V3 工程化结构）。
+本仓库用于 Cloudflare Pages 部署 `educlass.cn`。
 
-## 开发
+## 当前发布策略
+- `site/`：线上发布的“权威静态镜像”（来自测试版的整站构建产物）。
+- `npm run build`：将 `site/` 原样复制到 `dist/`，Cloudflare Pages 直接发布 `dist/`。
+- `legacy-src/`：旧版源码留底备份，不参与构建与发布。
 
+## 本地验证
 ```bash
 npm install
-npm run dev
+npm run build
 ```
 
-## 环境变量（可选）
+构建完成后检查：
+- `dist/index.html`
+- `dist/stitch/**`
 
-如果页面使用了 Supabase，把以下变量放到 `.env.local`（该文件默认不提交；也可以参考 `.env.example`）：
-
-```bash
-VITE_SUPABASE_URL=你的_supabase_url
-VITE_SUPABASE_ANON_KEY=你的_supabase_anon_key
-```
-
-如果页面需要调用 DeepSeek，请不要把 DeepSeek API Key 放在前端代码或任何 VITE_ 环境变量里；正确做法是部署一个中转代理（例如 Cloudflare Worker），由代理在服务端保存 Key，然后前端只配置：
-
-```bash
-VITE_DEEPSEEK_PROXY_URL=你的_deepseek_proxy_url
-```
-
-Deploy trigger: 2026-01-28
+## 回滚
+回滚到任意历史 commit 并 push，Cloudflare Pages 会自动回到对应版本。
