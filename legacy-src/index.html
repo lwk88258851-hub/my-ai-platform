@@ -11,6 +11,174 @@
     
     <!-- 核心功能库（已改为 npm + import，由 src/main.js 统一引入） -->
     <link rel="stylesheet" href="/src/style.css" />
+    <style>
+        .header-hud {
+            position: relative;
+            gap: 12px;
+        }
+        .header-hud > div:first-child {
+            flex: 0 0 auto;
+            white-space: nowrap;
+        }
+        .header-center-title {
+            position: static !important;
+            left: auto !important;
+            transform: none !important;
+            flex: 1 1 auto;
+            min-width: 0;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            z-index: 1;
+            text-align: center;
+        }
+        .wild-header-wrapper {
+            max-width: 100%;
+        }
+        .wild-header-title {
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .header-hud > div:last-child {
+            flex: 0 0 auto;
+        }
+
+        .wb-pages-sidebar {
+            background: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%) !important;
+            border-right: 1px solid #bfdbfe !important;
+        }
+        .wb-page-action {
+            background: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            color: #0f172a !important;
+            box-shadow: 0 12px 30px -24px rgba(15, 23, 42, 0.35);
+        }
+        .wb-page-action:hover {
+            background: #eff6ff !important;
+        }
+        .wb-page-thumb {
+            background: #f8fafc !important;
+            border: 1px solid #cbd5e1 !important;
+            color: #334155 !important;
+        }
+        .wb-page-thumb img {
+            background: #e2e8f0 !important;
+        }
+        .wb-page-thumb .wb-page-label {
+            color: #0f172a !important;
+        }
+
+        .panel-tabs {
+            background: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%) !important;
+            border-bottom: 1px solid #bfdbfe !important;
+            box-shadow: 0 18px 50px -40px rgba(59, 130, 246, 0.55);
+        }
+        .p-tab {
+            color: #475569 !important;
+        }
+        .p-tab:hover {
+            color: #0f172a !important;
+            background: rgba(59, 130, 246, 0.10) !important;
+        }
+        .p-tab.active {
+            color: #2563eb !important;
+            background: rgba(59, 130, 246, 0.12) !important;
+            border-bottom-color: #2563eb !important;
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.78) !important;
+            border: 1px solid rgba(191, 219, 254, 0.95) !important;
+            box-shadow: 0 22px 70px -45px rgba(59, 130, 246, 0.6) !important;
+            backdrop-filter: blur(10px);
+            transform: translateX(-50%) scale(1) !important;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
+        }
+        .controls.minimized {
+            background: rgba(255, 255, 255, 0.78) !important;
+        }
+        .controls:not(.minimized):hover {
+            box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.10), 0 28px 85px -55px rgba(251, 191, 36, 0.85) !important;
+            transform: translateX(-50%) scale(1.03) !important;
+        }
+        .ctrl-btn {
+            background: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            color: #0f172a !important;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
+        }
+        .ctrl-btn:hover {
+            background: #eff6ff !important;
+            color: #0f172a !important;
+            border-color: rgba(147, 197, 253, 0.95) !important;
+            box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.18), 0 18px 60px -35px rgba(251, 191, 36, 0.75);
+            transform: translateY(-1px) scale(1.06);
+        }
+        .ctrl-btn:active {
+            transform: scale(0.98);
+            box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.14), 0 10px 40px -28px rgba(251, 191, 36, 0.65);
+        }
+        .ctrl-btn:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.22), 0 18px 60px -35px rgba(251, 191, 36, 0.75);
+        }
+
+        .p-tab {
+            transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+        }
+        .p-tab:hover {
+            box-shadow: inset 0 -2px 0 rgba(245, 158, 11, 0.65), 0 16px 45px -38px rgba(251, 191, 36, 0.75);
+        }
+
+        .wb-page-action {
+            transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
+        }
+        .wb-page-action:hover {
+            border-color: rgba(147, 197, 253, 0.95) !important;
+            box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.18), 0 18px 60px -35px rgba(251, 191, 36, 0.65);
+            transform: translateY(-1px);
+        }
+
+        .wb-page-thumb {
+            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+        }
+        .wb-page-thumb:hover {
+            border-color: rgba(147, 197, 253, 0.95) !important;
+            box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.14), 0 22px 70px -45px rgba(251, 191, 36, 0.65);
+            transform: translateY(-1px);
+        }
+
+        #practice-layer {
+            background: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%) !important;
+        }
+        #practice-layer > div:first-child {
+            background: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%) !important;
+            border-bottom: 1px solid #bfdbfe !important;
+        }
+        #practice-layer .reupload-btn {
+            background: #ffffff !important;
+            color: #0f172a !important;
+            border: 1px solid #cbd5e1 !important;
+            box-shadow: 0 18px 55px -45px rgba(59, 130, 246, 0.55);
+            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+        }
+        #practice-layer .reupload-btn:hover {
+            border-color: rgba(245, 158, 11, 0.75) !important;
+            box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.18), 0 18px 60px -35px rgba(251, 191, 36, 0.75);
+            transform: translateY(-1px) scale(1.02);
+        }
+        #practice-layer #viewer-practice {
+            background: transparent !important;
+        }
+        #practice-layer .resource-viewer,
+        #practice-layer .resource-viewer.dark-mode {
+            background: transparent !important;
+            color: #0f172a !important;
+        }
+
+    </style>
 </head>
 <body>
 
@@ -283,7 +451,7 @@
             </button>
             
             <div style="width:1px; background:#555; height:20px; align-self:center;"></div>
-            
+
             <button class="ctrl-btn primary" id="btn-roll" onclick="app.startRoll('single')" title="随机点名"><i class="fas fa-dice-d20"></i></button>
             <button class="ctrl-btn pk" id="btn-pk" onclick="app.startRoll('pk')" title="PK对决"><i class="fas fa-khanda"></i></button>
             

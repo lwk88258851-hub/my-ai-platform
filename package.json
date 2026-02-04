@@ -4,8 +4,9 @@
   "version": "3.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
     "build": "node scripts/build-static.mjs",
+    "snapshot": "node scripts/snapshot-site.mjs",
+    "restore": "node scripts/restore-site.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -119,6 +119,41 @@
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
             background: rgba(0, 0, 0, 0.2);
         }
+
+        @keyframes ai-blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+        .ai-cursor {
+            display: inline-block;
+            margin-left: 2px;
+            animation: ai-blink 1s steps(2, end) infinite;
+        }
+
+        @keyframes ai-shimmer {
+            100% { transform: translateX(60%); }
+        }
+        .ai-skeleton {
+            position: relative;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.55);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            backdrop-filter: blur(10px);
+        }
+        .ai-skeleton::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            transform: translateX(-60%);
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
+            animation: ai-shimmer 1.4s infinite;
+        }
+
+        @keyframes ai-fade-in {
+            from { opacity: 0; transform: scale(0.985); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .ai-fade-in { animation: ai-fade-in 0.35s ease-out; }
     </style>
 
 <link rel="stylesheet" href="/index.css">
@@ -127,13 +162,11 @@
   "imports": {
     "react/": "https://esm.sh/react@^19.2.4/",
     "react": "https://esm.sh/react@^19.2.4",
-    "@google/genai": "https://esm.sh/@google/genai@^1.39.0",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
   }
 }
 </script>
-  <script type="module" crossorigin src="/stitch/teach/zhipu-wire.js"></script>
-  <script type="module" crossorigin src="/stitch/ai-home/assets/index-DkoDiGSs.js"></script>
+  <script type="module" crossorigin src="/stitch/ai-home/assets/index-BIAY-v8m.js"></script>
 </head>
 <body class="bg-[#F2F6FF] text-slate-800 transition-colors duration-300">
     <div id="root"></div>

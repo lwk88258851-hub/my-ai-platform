@@ -1,5 +1,6 @@
 node_modules
 dist
+site-archive
 
 .env
 .env.local
