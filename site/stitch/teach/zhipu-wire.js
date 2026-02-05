@@ -1,4 +1,4 @@
-const FN_CANDIDATES = ["zhipu-ai-service", "dynamic-service"];
+const AI_GATEWAY_FN = "ai-gateway";
 const _originalFetch = globalThis.fetch ? globalThis.fetch.bind(globalThis) : null;
 
 function sleep(ms) {
@@ -86,7 +86,6 @@ async function getSupabaseInfo() {
 
   const candidates = [
     "/stitch/teach/assets/index.js",
-    "/stitch/ai-home/assets/index-DkoDiGSs.js",
   ];
   let text = "";
   for (const jsUrl of candidates) {
@@ -232,12 +231,12 @@ async function withSingleFlight(fn) {
   return __zhipuInFlight;
 }
 
-async function callEdgeWithRetry(path, method, body) {
+async function callGatewayWithRetry(featureId, body) {
   const delays = [800, 1600, 3200];
   let lastErr = null;
   for (let i = 0; i <= delays.length; i++) {
     try {
-      return await callEdge(path, method, body);
+      return await callGateway(featureId, body);
     } catch (err) {
       lastErr = err;
       if (!isConcurrencyError(err) || i === delays.length) break;
@@ -248,7 +247,7 @@ async function callEdgeWithRetry(path, method, body) {
   throw lastErr instanceof Error ? lastErr : new Error("请求失败");
 }
 
-async function callEdge(path, method, body) {
+async function callGateway(featureId, body) {
   const { projectRef, anonKey, functionsBase } = await getSupabaseInfo();
   let accessToken = getAccessToken(projectRef);
   if (!accessToken) {
@@ -256,51 +255,38 @@ async function callEdge(path, method, body) {
     throw new Error("未登录");
   }
 
-  let lastErr = null;
-  for (const fnName of FN_CANDIDATES) {
-    const url = `${functionsBase}/${fnName}${path.startsWith("/") ? "" : "/"}${path}`;
-    try {
-      const doFetch = async () =>
-        fetch(url, {
-        method,
-        headers: {
-          apikey: anonKey,
-          authorization: `Bearer ${accessToken}`,
-          "content-type": "application/json",
-        },
-        body: body ? JSON.stringify(body) : undefined,
-        });
+  const url = `${functionsBase}/${AI_GATEWAY_FN}/run`;
 
-      let res = await doFetch();
-      if (res.status === 401) {
-        const t = await res.text().catch(() => "");
-        if (t.includes("Invalid JWT") || t.includes("invalid jwt") || t.includes("invalid_jwt")) {
-          accessToken = await refreshSupabaseSession();
-          res = await doFetch();
-        } else {
-          res = new Response(t, { status: 401, headers: res.headers });
-        }
-      }
+  const doFetch = async () =>
+    fetch(url, {
+      method: "POST",
+      headers: {
+        apikey: anonKey,
+        authorization: `Bearer ${accessToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ featureId, ...(body || {}) }),
+    });
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const code = data?.code || data?.error?.code || "";
-        const msg = data?.message || data?.error || `请求失败（${res.status}）`;
-        if (String(code) === "NOT_FOUND" || String(msg).includes("Requested function was not found")) {
-          lastErr = new Error("NOT_FOUND");
-          continue;
-        }
-        const detail = data?.detail ? JSON.stringify(data.detail).slice(0, 2000) : "";
-        const e = new Error(detail ? `${msg}\n${detail}` : msg);
-        e._code = String(code || "");
-        throw e;
-      }
-      return { url, data };
-    } catch (err) {
-      lastErr = err;
+  let res = await doFetch();
+  if (res.status === 401) {
+    const t = await res.text().catch(() => "");
+    if (t.includes("Invalid JWT") || t.includes("invalid jwt") || t.includes("invalid_jwt")) {
+      accessToken = await refreshSupabaseSession();
+      res = await doFetch();
+    } else {
+      res = new Response(t, { status: 401, headers: res.headers });
     }
   }
-  throw lastErr instanceof Error ? lastErr : new Error("请求失败");
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data?.ok === false) {
+    const msg = data?.error || data?.message || `请求失败（${res.status}）`;
+    const e = new Error(String(msg || "请求失败"));
+    e._code = String(data?.code || "");
+    throw e;
+  }
+  return { url, data };
 }
 
 function extractGeminiPrompt(body) {
@@ -342,8 +328,9 @@ function installGeminiFetchShim() {
       }
 
       const instruction = extractGeminiPrompt(payload) || "请生成内容。";
-      const { data } = await withSingleFlight(() => callEdgeWithRetry("text", "POST", { instruction }));
-      const text = String(data?.text || "").trim();
+      const { data } = await withSingleFlight(() => callGatewayWithRetry("teach-text", { instruction }));
+      const out = data?.output;
+      const text = (typeof out === "string" ? out : JSON.stringify(out ?? "")).trim();
       const respBody = {
         candidates: [
           {
@@ -359,7 +346,7 @@ function installGeminiFetchShim() {
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      const respBody = { error: { message: msg, status: "ZHIPU_EDGE_ERROR" } };
+      const respBody = { error: { message: msg, status: "AI_GATEWAY_ERROR" } };
       return new Response(JSON.stringify(respBody), {
         status: 500,
         headers: { "content-type": "application/json; charset=utf-8" },
@@ -445,8 +432,8 @@ async function runGenerate() {
       openUrl: "",
     });
 
-    const { url, data } = await withSingleFlight(() => callEdgeWithRetry("video", "POST", { prompt }));
-    const taskId = data.task_id;
+    const { url, data } = await withSingleFlight(() => callGatewayWithRetry("teach-video", { instruction: prompt }));
+    const taskId = data.taskId;
     showPanel({
       title: "视频生成任务",
       subtitle: `task_id: ${taskId}`,
@@ -458,8 +445,8 @@ async function runGenerate() {
     const startedAt = Date.now();
     for (;;) {
       await sleep(2000);
-      const { data: st } = await callEdgeWithRetry(`video?task_id=${encodeURIComponent(taskId)}`, "GET");
-      const result = st?.result || {};
+      const { data: st } = await callGatewayWithRetry("teach-video", { taskId });
+      const result = st?.output?.result || st?.output || {};
       const videos = Array.isArray(result?.video_result) ? result.video_result : [];
       const videoUrl = videos?.[0]?.url || "";
       if (videoUrl) {
@@ -496,8 +483,10 @@ async function runGenerate() {
       status: "生成中",
       openUrl: "",
     });
-    const { url, data } = await withSingleFlight(() => callEdgeWithRetry("image", "POST", { prompt }));
-    const imgUrl = data.image_url || "";
+    const { url, data } = await withSingleFlight(() => callGatewayWithRetry("teach-image", { instruction: prompt }));
+    const out = data?.output;
+    const imgUrl =
+      typeof out === "string" ? out : out?.image_url || out?.image || "";
     if (!imgUrl) throw new Error("图片生成未返回 image_url");
     showPanel({
       title: "图片生成完成",
@@ -513,13 +502,14 @@ async function runGenerate() {
 
   showPanel({
     title: "教案生成中",
-    subtitle: "glm-4.7（数学教学）",
+    subtitle: "由 AI 网关生成",
     text: "",
     status: "生成中",
     openUrl: "",
   });
-  const { url, data } = await withSingleFlight(() => callEdgeWithRetry("text", "POST", { instruction: prompt }));
-  const text = data.text || "";
+  const { url, data } = await withSingleFlight(() => callGatewayWithRetry("teach-text", { instruction: prompt }));
+  const out = data?.output;
+  const text = typeof out === "string" ? out : JSON.stringify(out ?? "");
   showPanel({
     title: "教案生成完成",
     subtitle: "可直接复制到 Word",
@@ -581,4 +571,4 @@ function attachHandlers() {
 
 attachHandlers();
 installGeminiFetchShim();
-toast("已接入智谱 AI：点击“生成内容”即可调用 Edge Function");
+toast("已接入 AI 网关：点击“生成内容”即可调用统一后端");

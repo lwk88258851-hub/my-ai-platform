@@ -4,7 +4,10 @@
 - 备课区新增“游戏代码”入口与对应工具页面（模板 / 自主创造）。
 - 教案生成 / 素材生成子选项支持收起/展开，避免遮挡新增入口。
 - 游戏代码：预览（iframe）、HTML 下载、网页包（zip）下载、导出网页链接。
-- Supabase Edge Function：`/text` 改为 DeepSeek 文本生成（教学助手提示词），新增 `/game` 生成网页游戏 HTML。
+- 教案生成新增“智能文本（deepseek-chat）”入口：多轮对话上下文、追问不跑题、Markdown+KaTeX 公式渲染、下载仅截取 `---` 前正文。
+- 图文生成入口改造：对话框区域替换为“智绘班会 smartclass-report”页面（iframe 方式完整复刻）；新增静态子页面 `/stitch/ai-home/smartclass-report/index.html`。
+- AI 接口管理：deepseek-chat 显示名改为“智能文本”；移除“文本教案生成(lesson-text)”管理项（界面不再展示）。
+- Supabase Edge Function：统一使用 `ai-gateway` 的 `POST /run`（按功能路由到对应 API）。
 - Supabase Storage：新增 `game-pages` bucket 与读写策略（用于导出网页链接）。
 
 ## 静态站点发布（Cloudflare Pages）
@@ -15,21 +18,25 @@
 ## Supabase（第三版一起上线时执行）
 
 ### 1) Edge Function 更新（必须）
-目标：更新线上 `zhipu-ai-service`，使 `POST /text` 调用 DeepSeek，`POST /game` 生成网页游戏 HTML。
+目标：上线 `ai-gateway`，所有 AI 功能统一通过 `POST /run` 调用，并由后端配置表决定每个功能走哪个 API。
 
-- 函数代码位置（本仓库存档）：`supabase/functions/zhipu-ai-service/index.ts`
+- 函数代码位置（本仓库存档）：`supabase/functions/ai-gateway/index.ts`
 - 环境变量（在 Supabase Dashboard → Project Settings → Functions 或 Secrets 配置）：
-  - `DEEPSEEK_API_KEY`：DeepSeek API Key
-  - `DEEPSEEK_BASE_URL`：可选，默认 `https://api.deepseek.com`
-  - `DEEPSEEK_MODEL`：可选，默认 `deepseek-chat`
-  - `ZHIPU_API_KEY`：用于图片/视频生成（如线上仍需要这些能力）
+  - `SUPABASE_URL`
+  - `SUPABASE_ANON_KEY`
+  - `SUPABASE_SERVICE_ROLE_KEY`
+  - `AI_CONFIG_ENC_KEY`：用于加解密保存的第三方 API Key
+  - `ADMIN_UIDS`：管理员用户 ID（逗号分隔），用于启用管理端接口
 
-说明：本仓库未内置 Supabase CLI 的 `supabase/config.toml`，因此可用以下两种方式发布函数：
-- 使用你现有的 Supabase Functions 项目/仓库，将本文件内容同步到对应的 `zhipu-ai-service` 函数后部署。
-- 或在 Supabase Dashboard 侧按你现有流程发布同名函数（函数名需保持 `zhipu-ai-service`，以兼容前端调用）。
+说明：前端不再传任何第三方 API Key；所有 Key 由后端通过管理端配置写入数据库并加密保存。
+
+补充：
+- deepseek-chat（智能文本）依赖管理端配置 connector 与 route（openai_compat，base_url=https://api.deepseek.com，model=deepseek-chat）。
+- smartclass-report 作为独立静态页面嵌入到图文生成中，API Key 由页面内输入并保存到浏览器 localStorage（仅本机生效），不经过 ai-gateway。
 
 ### 2) Storage bucket & policy（用于导出网页链接）
 在 Supabase Dashboard → SQL Editor 执行：
+- `supabase/ai-gateway.sql`
 - `supabase/game-pages.sql`
 
 执行后应看到：
@@ -41,4 +48,3 @@
 - Supabase：
   - Edge Function：回滚到旧版本函数代码并重新部署。
   - Storage：如需回滚策略，删除 `game-pages` 相关 policy 或删除 bucket（谨慎，可能影响已导出的链接）。
-
