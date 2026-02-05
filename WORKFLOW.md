@@ -14,7 +14,7 @@
 4. 修改 `site/`（这是线上镜像源；你所有页面与功能的最终成果都要落在这里）
 5. 本地构建验证：
    - `npm run build`
-   - 重点检查 `dist/index.html`、`dist/stitch/**`、以及 AI 调用是否仍指向 `dynamic-service`
+   - 重点检查 `dist/index.html`、`dist/stitch/**`、以及 AI 调用是否统一指向 `ai-gateway`
 6. 分支内提交（可多次提交），但不要合并到 `main`。
 
 ## 统一上线（一次性发布）
@@ -30,4 +30,3 @@
   - `npm run restore -- <文件夹名>`
   - `npm run build`
   - 提交并推送（用于线上快速回退到某个留底版本）
-
